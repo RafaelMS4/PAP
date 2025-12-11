@@ -30,11 +30,6 @@ export default function LoginPage() {
   return (
     <div className="login-container">
       <div className="login-box">
-        <div className="login-header">
-          <h1>IT HelpDesk</h1>
-          <p>Management System</p>
-        </div>
-
         <form onSubmit={handleLogin} className="login-form">
           <div className="form-group">
             <label htmlFor="username">Username</label>
@@ -43,7 +38,6 @@ export default function LoginPage() {
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="admin"
               required
               disabled={loading}
             />
@@ -72,13 +66,8 @@ export default function LoginPage() {
             {loading ? 'Logging in...' : 'Login'}
           </button>
         </form>
-
-        <div className="login-footer">
-          <p>Default credentials:</p>
-          <p><strong>Username:</strong> admin</p>
-          <p><strong>Password:</strong> admin</p>
-        </div>
       </div>
     </div>
   )
 }
+
