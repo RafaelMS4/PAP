@@ -1,6 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import swaggerUi from 'swagger-ui-express';
+import { specs } from './config/swagger.js';
 import routes from './routes/index.js';
 import './config/database.js';
 
@@ -12,6 +14,12 @@ const PORT = process.env.PORT || 5000;
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Swagger UI
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs, { 
+  customCss: '.swagger-ui { margin: 0; }',
+  customSiteTitle: 'IT HelpDesk API Docs'
+}));
 
 // Routes
 app.use('/api', routes);
