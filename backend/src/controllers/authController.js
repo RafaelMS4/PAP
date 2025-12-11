@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { dbGet, dbAll } from '../config/database.js';
+import { dbGet, dbAll, dbRun } from '../config/database.js';
 
 export const login = async (req, res) => {
   try {

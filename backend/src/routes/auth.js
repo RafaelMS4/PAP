@@ -4,7 +4,25 @@ import { verifyToken, isAdmin } from '../middleware/auth.js';
 
 const router = express.Router();
 
-/**
+/**<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Error</title>
+</head>
+<body>
+<pre>Cannot POST /auth/users</pre>
+</body>
+</html>
+
+Code
+Details
+404
+Undocumented
+Error: Not Found
+Response body
+
+Swagger
  * @swagger
  * /auth/login:
  *   post:
