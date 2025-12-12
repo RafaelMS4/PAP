@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { dbGet, dbAll } from '../config/database.js';
+import { dbGet, dbAll, dbRun } from '../config/database.js';
 
 export const login = async (req, res) => {
   try {
@@ -96,6 +96,41 @@ export const createUser = async (req, res) => {
     });
   } catch (error) {
     console.error('Create user error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+export const creatEquipment = async (req, res) => {
+  try {
+    const { name, type, serialNumber, assignedTo, maintenance } = req.body;
+
+    if (!name || !type || !serialNumber || !assignedTo || !maintenance) {
+      return res.status(400).json({ error: 'All fields are required' });
+    }
+
+    const ExistingPC = await dbGet('SELECT id FROM equipment WHERE serialNumber = ?', [serialNumber]);
+    if (ExistingPC) {
+      return res.status(400).json({ error: 'Equipment with this serial number already exists' });
+    }
+
+    const result = await dbRun(
+      'INSERT INTO equipment (name, type, serialNumber, assignedTo, maintenance) VALUES (?, ?, ?, ?, ?)',
+      [name, type, serialNumber, assignedTo, maintenance]
+    );
+
+    res.status(201).json({
+      message: 'Equipment created successfully',
+      equipment: {
+        id: result.id,
+        name,
+        type,
+        serialNumber,
+        assignedTo,
+        maintenance
+      }
+    });
+  } catch (error) {
+    console.error('Create equipment error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 };

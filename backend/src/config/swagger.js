@@ -14,7 +14,7 @@ const options = {
     },
     servers: [
       {
-        url: 'http://localhost:5000',
+        url: 'http://localhost:5000/api',
         description: 'Development server'
       }
     ],
@@ -27,6 +27,7 @@ const options = {
         }
       },
       schemas: {
+        // Schemas existentes (User, LoginRequest, etc.)
         User: {
           type: 'object',
           properties: {
@@ -107,6 +108,73 @@ const options = {
               type: 'string',
               enum: ['admin', 'user', 'technician'],
               example: 'user'
+            }
+          }
+        },
+        // NOVOS SCHEMAS PARA EQUIPMENT
+        CreateEquipmentRequest: {
+          type: 'object',
+          required: ['name', 'type', 'serialNumber', 'assignedTo', 'maintenance'],
+          properties: {
+            name: {
+              type: 'string',
+              description: 'Equipment name',
+              example: 'Dell Laptop XPS 15'
+            },
+            type: {
+              type: 'string',
+              description: 'Equipment type',
+              example: 'Laptop'
+            },
+            serialNumber: {
+              type: 'string',
+              description: 'Unique serial number',
+              example: 'SN123456789'
+            },
+            assignedTo: {
+              type: 'string',
+              description: 'User or department assigned to',
+              example: 'João Silva'
+            },
+            maintenance: {
+              type: 'string',
+              description: 'Maintenance status or schedule',
+              example: 'Active'
+            }
+          }
+        },
+        Equipment: {
+          type: 'object',
+          properties: {
+            id: {
+              type: 'integer',
+              description: 'Equipment ID',
+              example: 1
+            },
+            name: {
+              type: 'string',
+              description: 'Equipment name',
+              example: 'Dell Laptop XPS 15'
+            },
+            type: {
+              type: 'string',
+              description: 'Equipment type',
+              example: 'Laptop'
+            },
+            serialNumber: {
+              type: 'string',
+              description: 'Unique serial number',
+              example: 'SN123456789'
+            },
+            assignedTo: {
+              type: 'string',
+              description: 'User or department assigned to',
+              example: 'João Silva'
+            },
+            maintenance: {
+              type: 'string',
+              description: 'Maintenance status',
+              example: 'Active'
             }
           }
         },
