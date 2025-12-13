@@ -1,28 +1,10 @@
 import express from 'express';
-import { login, getCurrentUser, getUsers, createUser, creatEquipment } from '../controllers/authController.js';
+import { login, getCurrentUser, getUsers, createUser, creatEquipment, getEquipment, getEquipmentById } from '../controllers/authController.js';
 import { verifyToken, isAdmin } from '../middleware/auth.js';
 
 const router = express.Router();
 
-/**<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<title>Error</title>
-</head>
-<body>
-<pre>Cannot POST /auth/users</pre>
-</body>
-</html>
-
-Code
-Details
-404
-Undocumented
-Error: Not Found
-Response body
-
-Swagger
+/**
  * @swagger
  * /auth/login:
  *   post:
@@ -45,16 +27,8 @@ Swagger
  *               $ref: '#/components/schemas/LoginResponse'
  *       400:
  *         description: Missing username or password
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
  *       401:
  *         description: Invalid credentials
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
  *       500:
  *         description: Server error
  */
@@ -73,25 +47,10 @@ router.post('/login', login);
  *     responses:
  *       200:
  *         description: User retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 user:
- *                   $ref: '#/components/schemas/User'
  *       401:
  *         description: Unauthorized
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
  *       404:
  *         description: User not found
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
  */
 router.get('/me', verifyToken, getCurrentUser);
 
@@ -108,27 +67,10 @@ router.get('/me', verifyToken, getCurrentUser);
  *     responses:
  *       200:
  *         description: Users retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 users:
- *                   type: array
- *                   items:
- *                     $ref: '#/components/schemas/User'
  *       401:
  *         description: Unauthorized
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
  *       403:
  *         description: Forbidden - Admin access required
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
  *   post:
  *     summary: Create new user
  *     description: Creates a new user (admin only)
@@ -145,27 +87,10 @@ router.get('/me', verifyToken, getCurrentUser);
  *     responses:
  *       201:
  *         description: User created successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                 user:
- *                   $ref: '#/components/schemas/User'
  *       400:
  *         description: Invalid request
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
  *       401:
  *         description: Unauthorized
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
  *       403:
  *         description: Forbidden - Admin access required
  */
@@ -191,35 +116,59 @@ router.post('/users', verifyToken, isAdmin, createUser);
  *     responses:
  *       201:
  *         description: Equipment created successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                   example: Equipment created successfully
- *                 equipment:
- *                   $ref: '#/components/schemas/Equipment'
  *       400:
- *         description: Invalid request - Missing required fields or duplicate serial number
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
+ *         description: Invalid request
  *       401:
  *         description: Unauthorized
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
  *       500:
  *         description: Server error
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
+ *   get:
+ *     summary: Get all equipment
+ *     description: Retrieves a list of all equipment (admin only)
+ *     tags:
+ *       - Equipment
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Equipment retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Admin access required
  */
-router.post('/equipment', verifyToken, creatEquipment);
+router.post('/equipment', verifyToken, isAdmin, creatEquipment);
+router.get('/equipment', verifyToken, isAdmin, getEquipment);
+
+/**
+ * @swagger
+ * /auth/equipment/{id}:
+ *   get:
+ *     summary: Get equipment by ID
+ *     description: Retrieves equipment information by its ID (admin only)
+ *     tags:
+ *       - Equipment
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Equipment ID
+ *     responses:
+ *       200:
+ *         description: Equipment retrieved successfully
+ *       400:
+ *         description: Invalid request
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Equipment not found
+ *       500:
+ *         description: Server error
+ */
+router.get('/equipment/:id', verifyToken, isAdmin, getEquipmentById);
 
 export default router;

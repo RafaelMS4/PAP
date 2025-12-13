@@ -134,3 +134,25 @@ export const creatEquipment = async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 };
+
+export const getEquipment = async (req, res) => {
+  try {
+    const equipmentList = await dbAll('SELECT * FROM equipment ORDER BY id DESC');
+    res.json({ equipment: equipmentList });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
+export const getEquipmentById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const equipment = await dbGet('SELECT * FROM equipment WHERE id = ?', [id]);
+    if (!equipment) {
+      return res.status(404).json({ error: 'Equipment not found' });
+    }
+    res.json({ equipment });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+}
