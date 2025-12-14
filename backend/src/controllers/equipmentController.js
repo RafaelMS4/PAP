@@ -37,7 +37,7 @@ export const creatEquipment = async (req, res) => {
 
 export const getEquipment = async (req, res) => {
   try {
-    const equipmentList = await dbAll('SELECT * FROM equipment ORDER BY id DESC');
+    const equipmentList = await dbAll('SELECT equipment.*, users.username FROM equipment LEFT JOIN users ON users.id = equipment.assignedTo');
     res.json({ equipment: equipmentList });
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
@@ -47,7 +47,7 @@ export const getEquipment = async (req, res) => {
 export const getEquipmentById = async (req, res) => {
   try {
     const { id } = req.params;
-    const equipment = await dbGet('SELECT * FROM equipment WHERE id = ?', [id]);
+    const equipment = await dbGet('SELECT equipment.*, users.username FROM equipment LEFT JOIN users ON users.id = equipment.assignedTo and equipment.id = ?', [id]);
     if (!equipment) {
       return res.status(404).json({ error: 'Equipment not found' });
     }
@@ -67,6 +67,77 @@ export const deleteEquipment = async (req, res) => {
     await dbRun('DELETE FROM equipment WHERE id = ?', [id]);
     res.json({ message: 'Equipment deleted successfully' });
   } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+export const getUserEquipment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const equipmentList = await dbAll('SELECT equipment.* FROM equipment LEFT JOIN users ON users.id = equipment.assignedTo WHERE assignedTo = ?', [id]);
+    res.json({ equipment: equipmentList });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+export const updateEquipment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, type, serialNumber, assignedTo, maintenance } = req.body;
+
+    const equipment = await dbGet('SELECT * FROM equipment WHERE id = ?', [id]);
+    if (!equipment) {
+      return res.status(404).json({ error: 'Equipment not found' });
+    }
+
+    const updates = [];
+    const values = [];
+
+    if (name !== undefined) {
+      updates.push('name = ?');
+      values.push(name);
+    }
+    if (type !== undefined) {
+      updates.push('type = ?');
+      values.push(type);
+    }
+    if (serialNumber !== undefined) {
+      updates.push('serialNumber = ?');
+      values.push(serialNumber);
+    }
+    if (assignedTo !== undefined) {
+      updates.push('assignedTo = ?');
+      values.push(assignedTo);
+    }
+    if (maintenance !== undefined) {
+      updates.push('maintenance = ?');
+      values.push(maintenance);
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ error: 'No fields to update' });
+    }
+
+    values.push(id);
+
+    await dbRun(
+      `UPDATE equipment SET ${updates.join(', ')} WHERE id = ?`,
+      values
+    );
+
+    const updatedEquipment = await dbGet(
+      'SELECT equipment.*, users.username FROM equipment LEFT JOIN users ON users.id = equipment.assignedTo WHERE equipment.id = ?',
+      [id]
+    );
+
+    res.json({ 
+      message: 'Equipment updated successfully',
+      equipment: updatedEquipment 
+    });
+
+  } catch (error) {
+    console.error('Update equipment error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 };
