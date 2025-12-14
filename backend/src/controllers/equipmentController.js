@@ -37,7 +37,7 @@ export const creatEquipment = async (req, res) => {
 
 export const getEquipment = async (req, res) => {
   try {
-    const equipmentList = await dbAll('SELECT * FROM equipment ORDER BY id DESC');
+    const equipmentList = await dbAll('SELECT equipment.*, users.username FROM equipment LEFT JOIN users ON users.id = equipment.assignedTo');
     res.json({ equipment: equipmentList });
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
@@ -47,7 +47,7 @@ export const getEquipment = async (req, res) => {
 export const getEquipmentById = async (req, res) => {
   try {
     const { id } = req.params;
-    const equipment = await dbGet('SELECT * FROM equipment WHERE id = ?', [id]);
+    const equipment = await dbGet('SELECT equipment.*, users.username FROM equipment LEFT JOIN users ON users.id = equipment.assignedTo and equipment.id = ?', [id]);
     if (!equipment) {
       return res.status(404).json({ error: 'Equipment not found' });
     }
@@ -66,6 +66,34 @@ export const deleteEquipment = async (req, res) => {
     }
     await dbRun('DELETE FROM equipment WHERE id = ?', [id]);
     res.json({ message: 'Equipment deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+export const getUserEquipment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const equipmentList = await dbAll('SELECT equipment.* FROM equipment LEFT JOIN users ON users.id = equipment.assignedTo WHERE assignedTo = ?', [id]);
+    res.json({ equipment: equipmentList });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+export const updateEquipment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, type, serialNumber, assignedTo, maintenance } = req.body;
+    const equipment = await dbGet('SELECT * FROM equipment WHERE id = ?', [id]);
+    if (!equipment) {
+      return res.status(404).json({ error: 'Equipment not found' });
+    }
+    await dbRun(
+      'UPDATE equipment SET name = ?, type = ?, serialNumber = ?, assignedTo = ?, maintenance = ? WHERE id = ?',
+      [name || equipment.name, type || equipment.type, serialNumber || equipment.serialNumber, assignedTo || equipment.assignedTo, maintenance || equipment.maintenance, id]
+    );
+    res.json({ message: 'Equipment updated successfully' });
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
   }

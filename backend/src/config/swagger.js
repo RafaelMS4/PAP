@@ -27,7 +27,7 @@ const options = {
         }
       },
       schemas: {
-        // Schemas existentes (User, LoginRequest, etc.)
+        // ============ USER SCHEMAS ============
         User: {
           type: 'object',
           properties: {
@@ -50,6 +50,10 @@ const options = {
               example: 'admin'
             },
             created_at: {
+              type: 'string',
+              format: 'date-time'
+            },
+            updated_at: {
               type: 'string',
               format: 'date-time'
             }
@@ -92,26 +96,32 @@ const options = {
           properties: {
             username: {
               type: 'string',
-              example: 'newuser'
+              example: 'newuser',
+              description: 'Unique username'
             },
             password: {
               type: 'string',
               format: 'password',
-              example: 'password123'
+              example: 'password123',
+              description: 'User password (min 6 characters)'
             },
             email: {
               type: 'string',
               format: 'email',
-              example: 'newuser@example.com'
+              example: 'newuser@example.com',
+              description: 'User email address'
             },
             role: {
               type: 'string',
               enum: ['admin', 'user', 'technician'],
-              example: 'user'
+              default: 'user',
+              example: 'user',
+              description: 'User role in the system'
             }
           }
         },
-        // NOVOS SCHEMAS PARA EQUIPMENT
+        
+        // ============ EQUIPMENT SCHEMAS ============
         CreateEquipmentRequest: {
           type: 'object',
           required: ['name', 'type', 'serialNumber', 'assignedTo', 'maintenance'],
@@ -132,16 +142,50 @@ const options = {
               example: 'SN123456789'
             },
             assignedTo: {
-              type: 'string',
-              description: 'User or department assigned to',
-              example: 'João Silva'
+              type: 'integer',
+              description: 'User ID assigned to',
+              example: 2
             },
             maintenance: {
               type: 'string',
-              description: 'Maintenance status or schedule',
-              example: 'Active'
+              format: 'date',
+              description: 'Maintenance expiration date',
+              example: '2024-12-31'
             }
           }
+        },
+        UpdateEquipmentRequest: {
+          type: 'object',
+          properties: {
+            name: {
+              type: 'string',
+              description: 'Equipment name',
+              example: 'Dell Laptop XPS 15'
+            },
+            type: {
+              type: 'string',
+              description: 'Equipment type',
+              example: 'Laptop'
+            },
+            serialNumber: {
+              type: 'string',
+              description: 'Unique serial number',
+              example: 'SN123456789'
+            },
+            assignedTo: {
+              type: 'integer',
+              description: 'User ID assigned to (null to unassign)',
+              example: 2,
+              nullable: true
+            },
+            maintenance: {
+              type: 'string',
+              format: 'date',
+              description: 'Maintenance expiration date',
+              example: '2025-06-30'
+            }
+          },
+          description: 'All fields are optional. Only provided fields will be updated.'
         },
         Equipment: {
           type: 'object',
@@ -167,17 +211,27 @@ const options = {
               example: 'SN123456789'
             },
             assignedTo: {
+              type: 'integer',
+              description: 'User ID assigned to',
+              example: 1,
+              nullable: true
+            },
+            username: {
               type: 'string',
-              description: 'User or department assigned to',
-              example: 'João Silva'
+              description: 'Username of assigned user',
+              example: 'joao.silva',
+              nullable: true
             },
             maintenance: {
               type: 'string',
-              description: 'Maintenance status',
-              example: 'Active'
+              format: 'date',
+              description: 'Maintenance expiration date',
+              example: '2024-12-31'
             }
           }
         },
+        
+        // ============ ERROR SCHEMA ============
         Error: {
           type: 'object',
           properties: {

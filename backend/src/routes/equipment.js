@@ -1,5 +1,5 @@
 import express from 'express';
-import { creatEquipment, getEquipment, getEquipmentById, deleteEquipment } from '../controllers/equipmentController.js';
+import { creatEquipment, getEquipment, getEquipmentById, deleteEquipment, getUserEquipment, updateEquipment } from '../controllers/equipmentController.js';
 import { verifyToken, isAdmin } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -92,6 +92,82 @@ router.get('/getEquipment', verifyToken, isAdmin, getEquipment);
  *         description: Server error
  */
 router.get('/getEquipmentID/:id', verifyToken, isAdmin, getEquipmentById);
+
+/**
+ * @swagger
+ * /equipment/getUserEquipment/{id}:
+ *   get:
+ *     summary: Get equipment assigned to a user
+ *     description: Retrieves a list of equipment assigned to a specific user
+ *     tags:
+ *       - Equipment
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           description: User ID
+ *     responses:
+ *       200:
+ *         description: Equipment from user retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Equipment'
+ *       400:
+ *         description: Invalid request
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Equipment not found
+ *       500:
+ *         description: Server error
+ */
+router.get('/getUserEquipment/:id', verifyToken, isAdmin, getUserEquipment);
+
+/**
+ * @swagger
+ * /equipment/updateEquipment/{id}:
+ *   put:
+ *     summary: Update equipment by ID
+ *     description: Updates equipment information by its ID (admin only)
+ *     tags:
+ *       - Equipment
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           description: Equipment ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/UpdateEquipmentRequest'
+ *     responses:
+ *       200:
+ *         description: Equipment updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Equipment'
+ *       400:
+ *         description: Invalid request
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Equipment not found
+ *       500:
+ *         description: Server error
+ */    
+router.put('/updateEquipment/:id', verifyToken, isAdmin, updateEquipment);
 
 /**
  * @swagger
