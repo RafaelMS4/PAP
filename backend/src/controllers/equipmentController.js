@@ -56,3 +56,17 @@ export const getEquipmentById = async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 }
+
+export const deleteEquipment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const equipment = await dbGet('SELECT * FROM equipment WHERE id = ?', [id]);
+    if (!equipment) {
+      return res.status(404).json({ error: 'Equipment not found' });
+    }
+    await dbRun('DELETE FROM equipment WHERE id = ?', [id]);
+    res.json({ message: 'Equipment deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+};

@@ -1,0 +1,2 @@
+CRUD criar equipamento - assignedTo tem de ser int
+CRUD update
