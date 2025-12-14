@@ -1,0 +1,46 @@
+import bcrypt from 'bcryptjs';
+import { dbGet, dbAll, dbRun } from '../config/database.js';
+
+export const getUsers = async (req, res) => {
+  try {
+    const users = await dbAll('SELECT id, username, email, role, created_at FROM users ORDER BY created_at DESC');
+    res.json({ users });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+export const createUser = async (req, res) => {
+  try {
+    const { username, password, email, role } = req.body;
+
+    if (!username || !password || !email) {
+      return res.status(400).json({ error: 'Username, password, and email required' });
+    }
+
+    const existingUser = await dbGet('SELECT id FROM users WHERE username = ? OR email = ?', [username, email]);
+    if (existingUser) {
+      return res.status(400).json({ error: 'User or email already exists' });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const result = await dbRun(
+      'INSERT INTO users (username, password, email, role) VALUES (?, ?, ?, ?)',
+      [username, hashedPassword, email, role || 'user']
+    );
+
+    res.status(201).json({
+      message: 'User created successfully',
+      user: {
+        id: result.id,
+        username,
+        email,
+        role: role || 'user'
+      }
+    });
+  } catch (error) {
+    console.error('Create user error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
