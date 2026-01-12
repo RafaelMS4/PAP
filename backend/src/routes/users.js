@@ -1,5 +1,5 @@
 import express from 'express';
-import { getUsers, createUser, deleteUser } from '../controllers/usersController.js';
+import { getUsers, createUser, deleteUser, updateUser } from '../controllers/usersController.js';
 import { verifyToken, isAdmin } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -102,6 +102,47 @@ router.get('/getUsers', verifyToken, isAdmin, getUsers);
  *         description: Server error
  */
 router.get('/getUserByID/:id', verifyToken, isAdmin, getUsers);
+
+/**
+ * @swagger
+ * /users/updateUser/{id}:
+ *   put:
+ *     summary: Update user by ID
+ *     description: Updates user information by its ID (admin only)
+ *     tags:
+ *       - Users
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           description: User ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/UpdateUserRequest'
+ *     responses:
+ *       200:
+ *         description: User updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/User'
+ *       400:
+ *         description: Invalid request
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Equipment not found
+ *       500:
+ *         description: Server error
+ */    
+router.put('/updateUser/:id', verifyToken, isAdmin, updateUser);
 
 /**
  * @swagger

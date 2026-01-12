@@ -120,6 +120,27 @@ const options = {
             }
           }
         },
+        UpdateUserRequest: {
+          type: 'object',
+          properties: {
+            username: {
+              type: 'string',
+              description: 'User name',
+              example: 'David Moura'
+            },
+            email: {
+              type: 'string',
+              description: 'User Email',
+              example: 'david.moura@gmail.com'
+            },
+            role: {
+              type: 'string',
+              description: 'role',
+              example: 'user'
+            },
+          },
+          description: 'All fields are optional. Only provided fields will be updated.'
+        },
         
         // ============ EQUIPMENT SCHEMAS ============
         CreateEquipmentRequest: {
