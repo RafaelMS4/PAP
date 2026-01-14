@@ -23,11 +23,11 @@ export const db = new sqlite3.Database(DB_PATH, (err) => {
 });
 
 // Promisify database methods
-export const dbRun = (sql, params = []) => {
+export const dbRun = (query, params = []) => {
   return new Promise((resolve, reject) => {
-    db.run(sql, params, function(err) {
+    db.run(query, params, function(err) {
       if (err) reject(err);
-      else resolve({ id: this.lastID, changes: this.changes });
+      else resolve({ lastID: this.lastID, changes: this.changes });
     });
   });
 };
