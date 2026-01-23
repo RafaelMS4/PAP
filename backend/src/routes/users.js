@@ -1,5 +1,5 @@
 import express from 'express';
-import { getUsers, createUser, deleteUser, updateUser } from '../controllers/usersController.js';
+import { getUsers, createUser, deleteUser, updateUser, getUserById, getAdmins } from '../controllers/usersController.js';
 import { verifyToken, isAdmin } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -182,5 +182,62 @@ router.put('/updateUser/:id', verifyToken, isAdmin, updateUser);
  *         description: Server error
  */
 router.delete('/deleteUser/:id', verifyToken, isAdmin, deleteUser);
+
+/**
+ * @swagger
+ * /users/{id}:
+ *   get:
+ *     summary: Get user by ID
+ *     description: Retrieves a specific user by ID (admin or self)
+ *     tags:
+ *       - Users
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: User retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: User not found
+ */
+router.get('/:id', verifyToken, getUserById);
+
+/**
+ * @swagger
+ * /users/list/admins:
+ *   get:
+ *     summary: Get all admin users
+ *     description: Retrieves a list of all admin users (admin only)
+ *     tags:
+ *       - Users
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 50
+ *       - in: query
+ *         name: offset
+ *         schema:
+ *           type: integer
+ *           default: 0
+ *     responses:
+ *       200:
+ *         description: Admin users list retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Admin access required
+ */
+router.get('/list/admins', verifyToken, isAdmin, getAdmins);
 
 export default router;

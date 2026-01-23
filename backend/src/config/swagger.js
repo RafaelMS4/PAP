@@ -326,23 +326,40 @@ const options = {
         },
 
         CreateTicketRequest: {
-        type: 'object',
-        required: ['title', 'description'],
-        properties: {
-          description: {
-            type: 'string',
-            description: 'Descrição detalhada do problema',
-            example: 'O computador da sala 5 não liga quando pressiono o botão'
-          },
-          priority: {
-            type: 'string',
-            enum: ['low', 'medium', 'high', 'urgent'],
-            default: 'medium',
-            description: 'Prioridade definida pelo utilizador',
-            example: 'high'
+          type: 'object',
+          required: ['description'],
+          properties: {
+            title: {
+              type: 'string',
+              description: 'Ticket title (optional, auto-generated if not provided)',
+              example: 'Computer not working'
+            },
+            description: {
+              type: 'string',
+              description: 'Descrição detalhada do problema',
+              example: 'O computador da sala 5 não liga quando pressiono o botão'
+            },
+            priority: {
+              type: 'string',
+              enum: ['low', 'medium', 'high', 'urgent'],
+              default: 'medium',
+              description: 'Prioridade definida pelo utilizador',
+              example: 'high'
+            },
+            category: {
+              type: 'string',
+              description: 'Ticket category',
+              example: 'Hardware',
+              nullable: true
+            },
+            primary_equipment_id: {
+              type: 'integer',
+              description: 'ID do equipamento principal',
+              example: 1,
+              nullable: true
+            }
           }
-        }
-      },
+        },
 
       UpdateTicketRequest: {
         type: 'object',
@@ -619,6 +636,119 @@ const options = {
             created_at: {
               type: 'string',
               format: 'date-time'
+            }
+          }
+        },
+        
+        // ============ TIME LOG SCHEMAS ============
+        AddTimeLogRequest: {
+          type: 'object',
+          required: ['time_spent'],
+          properties: {
+            time_spent: {
+              type: 'integer',
+              description: 'Time spent in minutes',
+              example: 120
+            },
+            description: {
+              type: 'string',
+              description: 'Description of work done',
+              example: 'Fixed hardware issue',
+              nullable: true
+            }
+          }
+        },
+
+        // ============ COMMENT SCHEMAS ============
+        AddCommentRequest: {
+          type: 'object',
+          required: ['message'],
+          properties: {
+            message: {
+              type: 'string',
+              description: 'Comment message',
+              example: 'Added new comment'
+            },
+            comment_type: {
+              type: 'string',
+              enum: ['comment', 'task', 'internal_note', 'solution'],
+              default: 'comment',
+              description: 'Type of comment (task and solution for admins only)',
+              example: 'comment'
+            },
+            is_internal: {
+              type: 'boolean',
+              default: false,
+              description: 'Whether this comment is internal only',
+              example: false
+            }
+          }
+        },
+
+        UpdateCommentRequest: {
+          type: 'object',
+          required: ['message'],
+          properties: {
+            message: {
+              type: 'string',
+              example: 'Updated comment'
+            }
+          }
+        },
+
+        // ============ CLOSE TICKET SCHEMAS ============
+        CloseTicketRequest: {
+          type: 'object',
+          required: ['solution_message'],
+          properties: {
+            solution_message: {
+              type: 'string',
+              description: 'Solution message to close the ticket',
+              example: 'Issue resolved - hardware replaced'
+            }
+          }
+        },
+
+        // ============ ASSIGN TICKET SCHEMAS ============
+        AssignTicketRequest: {
+          type: 'object',
+          required: ['assigned_to'],
+          properties: {
+            assigned_to: {
+              type: 'integer',
+              description: 'User ID to assign the ticket to',
+              example: 1
+            }
+          }
+        },
+
+        // ============ ADMIN HOURS RESPONSE ============
+        AdminHoursResponse: {
+          type: 'object',
+          properties: {
+            adminHours: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  id: {
+                    type: 'integer',
+                    example: 1
+                  },
+                  username: {
+                    type: 'string',
+                    example: 'admin'
+                  },
+                  total_minutes: {
+                    type: 'integer',
+                    example: 480
+                  },
+                  total_hours: {
+                    type: 'number',
+                    example: 8.0
+                  }
+                }
+              }
             }
           }
         },

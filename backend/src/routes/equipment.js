@@ -1,5 +1,5 @@
 import express from 'express';
-import { creatEquipment, getEquipment, getEquipmentById, deleteEquipment, getUserEquipment, updateEquipment } from '../controllers/equipmentController.js';
+import { creatEquipment, getEquipment, getEquipmentById, deleteEquipment, getUserEquipment, updateEquipment, getEquipmentByType } from '../controllers/equipmentController.js';
 import { verifyToken, isAdmin } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -203,5 +203,44 @@ router.put('/updateEquipment/:id', verifyToken, isAdmin, updateEquipment);
  *         description: Server error
  */
 router.delete('/deleteEquipment/:id', verifyToken, isAdmin, deleteEquipment);
+
+/**
+ * @swagger
+ * /equipment/type/{type}:
+ *   get:
+ *     summary: Get equipment by type
+ *     description: Retrieves all equipment of a specific type with optional filtering
+ *     tags:
+ *       - Equipment
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: type
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [active, inactive, maintenance]
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 50
+ *       - in: query
+ *         name: offset
+ *         schema:
+ *           type: integer
+ *           default: 0
+ *     responses:
+ *       200:
+ *         description: Equipment by type retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ */
+router.get('/type/:type', verifyToken, getEquipmentByType);
 
 export default router;

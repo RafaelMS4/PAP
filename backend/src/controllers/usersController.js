@@ -3,9 +3,56 @@ import { dbGet, dbAll, dbRun } from '../config/database.js';
 
 export const getUsers = async (req, res) => {
   try {
-    const users = await dbAll('SELECT id, username, email, role, created_at FROM users ORDER BY created_at DESC');
-    res.json({ users });
+    const { role, search, limit = 50, offset = 0 } = req.query;
+    const limitNum = Math.min(parseInt(limit) || 50, 100);
+    const offsetNum = parseInt(offset) || 0;
+
+    let sql = 'SELECT id, username, email, role, created_at FROM users WHERE deleted_at IS NULL';
+    const params = [];
+
+    if (role) {
+      sql += ' AND role = ?';
+      params.push(role);
+    }
+
+    if (search) {
+      sql += ' AND (username LIKE ? OR email LIKE ?)';
+      const searchPattern = `%${search}%`;
+      params.push(searchPattern, searchPattern);
+    }
+
+    sql += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
+    params.push(limitNum, offsetNum);
+
+    const users = await dbAll(sql, params);
+
+    // Get total count for pagination
+    let countSql = 'SELECT COUNT(*) as count FROM users WHERE deleted_at IS NULL';
+    const countParams = [];
+    if (role) {
+      countSql += ' AND role = ?';
+      countParams.push(role);
+    }
+    if (search) {
+      countSql += ' AND (username LIKE ? OR email LIKE ?)';
+      const searchPattern = `%${search}%`;
+      countParams.push(searchPattern, searchPattern);
+    }
+
+    const countResult = await dbGet(countSql, countParams);
+    const total = countResult.count;
+
+    res.json({ 
+      users,
+      pagination: {
+        total,
+        limit: limitNum,
+        offset: offsetNum,
+        pages: Math.ceil(total / limitNum)
+      }
+    });
   } catch (error) {
+    console.error('Get users error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 };
@@ -33,7 +80,7 @@ export const createUser = async (req, res) => {
     res.status(201).json({
       message: 'User created successfully',
       user: {
-        id: result.id,
+        id: result.lastID,
         username,
         email,
         role: role || 'user'
@@ -48,7 +95,7 @@ export const createUser = async (req, res) => {
 export const getUserById = async (req, res) => {
   try {
     const { id } = req.params;
-    const user = await dbGet('SELECT * FROM users WHERE id = ?', [id]);
+    const user = await dbGet('SELECT id, username, email, role, created_at FROM users WHERE id = ? AND deleted_at IS NULL', [id]);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
@@ -61,9 +108,12 @@ export const getUserById = async (req, res) => {
 export const deleteUser = async (req, res) => {
   try {
     const { id } = req.params;
-    const result = await dbRun('DELETE FROM users WHERE id = ?', [id]);
+    
+    // Soft delete - mark as deleted but keep data
+    const result = await dbRun('UPDATE users SET deleted_at = datetime("now") WHERE id = ? AND deleted_at IS NULL', [id]);
+    
     if (result.changes === 0) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ error: 'User not found or already deleted' });
     }
     res.json({ message: 'User deleted successfully' });
     } catch (error) {
@@ -108,7 +158,7 @@ export const updateUser = async (req, res) => {
     await dbRun(sql, values);
 
     const updatedUser = await dbGet(
-      'SELECT id, username, email, role, created_at, updated_at FROM users WHERE id = ?',
+      'SELECT id, username, email, role, created_at FROM users WHERE id = ?',
       [id]
     );
 
@@ -119,6 +169,34 @@ export const updateUser = async (req, res) => {
     
   } catch (error) {
     console.error('Update user error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+export const getAdmins = async (req, res) => {
+  try {
+    const { limit = 50, offset = 0 } = req.query;
+    const limitNum = Math.min(parseInt(limit) || 50, 100);
+    const offsetNum = parseInt(offset) || 0;
+
+    const admins = await dbAll(
+      'SELECT id, username, email, role, created_at FROM users WHERE role = "admin" AND deleted_at IS NULL ORDER BY created_at DESC LIMIT ? OFFSET ?',
+      [limitNum, offsetNum]
+    );
+
+    const countResult = await dbGet('SELECT COUNT(*) as count FROM users WHERE role = "admin" AND deleted_at IS NULL');
+
+    res.json({
+      admins,
+      pagination: {
+        total: countResult.count,
+        limit: limitNum,
+        offset: offsetNum,
+        pages: Math.ceil(countResult.count / limitNum)
+      }
+    });
+  } catch (error) {
+    console.error('Get admins error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 };
