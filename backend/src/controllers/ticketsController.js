@@ -838,3 +838,205 @@ export const removeEquipmentFromTicket = async (req, res) => {
     res.status(500).json({ error: 'Erro ao remover equipamento do ticket' });
   }
 };
+
+export const getMyTickets = async (req, res) => {
+  try {
+    const { status, priority, limit = 50, offset = 0 } = req.query;
+    const userId = req.userId;
+    const limitNum = Math.min(parseInt(limit) || 50, 100);
+    const offsetNum = parseInt(offset) || 0;
+
+    let sql = 'SELECT * FROM tickets WHERE user_id = ?';
+    const params = [userId];
+
+    if (status) {
+      sql += ' AND status = ?';
+      params.push(status);
+    }
+
+    if (priority) {
+      sql += ' AND priority = ?';
+      params.push(priority);
+    }
+
+    sql += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
+    params.push(limitNum, offsetNum);
+
+    const tickets = await dbAll(sql, params);
+
+    // Get total count
+    let countSql = 'SELECT COUNT(*) as count FROM tickets WHERE user_id = ?';
+    const countParams = [userId];
+    if (status) {
+      countSql += ' AND status = ?';
+      countParams.push(status);
+    }
+    if (priority) {
+      countSql += ' AND priority = ?';
+      countParams.push(priority);
+    }
+
+    const countResult = await dbGet(countSql, countParams);
+
+    res.json({
+      tickets,
+      pagination: {
+        total: countResult.count,
+        limit: limitNum,
+        offset: offsetNum,
+        pages: Math.ceil(countResult.count / limitNum)
+      }
+    });
+  } catch (error) {
+    console.error('Get my tickets error:', error);
+    res.status(500).json({ error: 'Erro ao buscar seus tickets' });
+  }
+};
+
+export const getAdminQueue = async (req, res) => {
+  try {
+    const { priority, category, limit = 50, offset = 0 } = req.query;
+    const limitNum = Math.min(parseInt(limit) || 50, 100);
+    const offsetNum = parseInt(offset) || 0;
+
+    let sql = 'SELECT tickets.*, users.username FROM tickets LEFT JOIN users ON users.id = tickets.user_id WHERE tickets.assigned_to IS NULL AND tickets.status != "closed"';
+    const params = [];
+
+    if (priority) {
+      sql += ' AND tickets.priority = ?';
+      params.push(priority);
+    }
+
+    if (category) {
+      sql += ' AND tickets.category = ?';
+      params.push(category);
+    }
+
+    sql += ' ORDER BY tickets.priority DESC, tickets.created_at ASC LIMIT ? OFFSET ?';
+    params.push(limitNum, offsetNum);
+
+    const tickets = await dbAll(sql, params);
+
+    // Get total count
+    let countSql = 'SELECT COUNT(*) as count FROM tickets WHERE assigned_to IS NULL AND status != "closed"';
+    const countParams = [];
+    if (priority) {
+      countSql += ' AND priority = ?';
+      countParams.push(priority);
+    }
+    if (category) {
+      countSql += ' AND category = ?';
+      countParams.push(category);
+    }
+
+    const countResult = await dbGet(countSql, countParams);
+
+    res.json({
+      tickets,
+      pagination: {
+        total: countResult.count,
+        limit: limitNum,
+        offset: offsetNum,
+        pages: Math.ceil(countResult.count / limitNum)
+      }
+    });
+  } catch (error) {
+    console.error('Get admin queue error:', error);
+    res.status(500).json({ error: 'Erro ao buscar fila de admin' });
+  }
+};
+
+export const updateTicketPriority = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { priority } = req.body;
+
+    if (!['low', 'medium', 'high', 'urgent'].includes(priority)) {
+      return res.status(400).json({ error: 'Prioridade inválida' });
+    }
+
+    const result = await dbRun(
+      'UPDATE tickets SET priority = ? WHERE id = ?',
+      [priority, id]
+    );
+
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Ticket não encontrado' });
+    }
+
+    // Log action in history
+    await dbRun(
+      'INSERT INTO ticket_history (ticket_id, action, changed_by, change_details) VALUES (?, ?, ?, ?)',
+      [id, 'priority_changed', req.userId, JSON.stringify({ old_priority: req.body.old_priority, new_priority: priority })]
+    );
+
+    const ticket = await dbGet('SELECT * FROM tickets WHERE id = ?', [id]);
+    res.json({ message: 'Prioridade atualizada', ticket });
+  } catch (error) {
+    console.error('Update ticket priority error:', error);
+    res.status(500).json({ error: 'Erro ao atualizar prioridade' });
+  }
+};
+
+export const updateTicketStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!['open', 'in_progress', 'closed'].includes(status)) {
+      return res.status(400).json({ error: 'Status inválido' });
+    }
+
+    const result = await dbRun(
+      'UPDATE tickets SET status = ? WHERE id = ?',
+      [status, id]
+    );
+
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Ticket não encontrado' });
+    }
+
+    // Log action in history
+    await dbRun(
+      'INSERT INTO ticket_history (ticket_id, action, changed_by, change_details) VALUES (?, ?, ?, ?)',
+      [id, 'status_changed', req.userId, JSON.stringify({ new_status: status })]
+    );
+
+    const ticket = await dbGet('SELECT * FROM tickets WHERE id = ?', [id]);
+    res.json({ message: 'Status atualizado', ticket });
+  } catch (error) {
+    console.error('Update ticket status error:', error);
+    res.status(500).json({ error: 'Erro ao atualizar status' });
+  }
+};
+
+export const downloadAttachment = async (req, res) => {
+  try {
+    const { attachmentId } = req.params;
+    const attachment = await dbGet('SELECT * FROM attachments WHERE id = ?', [attachmentId]);
+
+    if (!attachment) {
+      return res.status(404).json({ error: 'Anexo não encontrado' });
+    }
+
+    // Check access - user can download if they created the ticket or are admin
+    const ticket = await dbGet('SELECT * FROM tickets WHERE id = ?', [attachment.ticket_id]);
+    
+    if (req.userRole !== 'admin' && ticket.user_id !== req.userId && ticket.assigned_to !== req.userId) {
+      return res.status(403).json({ error: 'Acesso negado' });
+    }
+
+    const filePath = path.join(UPLOAD_DIR, attachment.file_path);
+
+    // Check if file exists
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: 'Ficheiro não encontrado no servidor' });
+    }
+
+    // Send file
+    res.download(filePath, attachment.file_name);
+  } catch (error) {
+    console.error('Download attachment error:', error);
+    res.status(500).json({ error: 'Erro ao descarregar anexo' });
+  }
+};

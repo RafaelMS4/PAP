@@ -24,7 +24,13 @@ import {
   deleteAttachment,
   addEquipmentToTicket,
   getTicketEquipment,
-  removeEquipmentFromTicket,} from '../controllers/ticketsController.js';
+  removeEquipmentFromTicket,
+  getMyTickets,
+  getAdminQueue,
+  updateTicketPriority,
+  updateTicketStatus,
+  downloadAttachment,
+} from '../controllers/ticketsController.js';
 import { verifyToken, isAdmin } from '../middleware/auth.js';
 
 // Configure multer for file uploads
@@ -922,5 +928,20 @@ router.get('/:id/equipment', verifyToken, checkTicketAccess, getTicketEquipment)
  *         description: Internal server error
  */
 router.delete('/:id/equipment/:equipmentId', verifyToken, checkTicketAccess, removeEquipmentFromTicket);
+
+// My Tickets - Get tickets created by the current user
+router.get('/my/tickets', verifyToken, getMyTickets);
+
+// Admin Queue - Get unassigned tickets (admin only)
+router.get('/admin/queue', verifyToken, isAdmin, getAdminQueue);
+
+// Update ticket priority
+router.put('/:id/priority', verifyToken, isAdmin, updateTicketPriority);
+
+// Update ticket status
+router.put('/:id/status', verifyToken, isAdmin, updateTicketStatus);
+
+// Download attachment
+router.get('/attachments/:attachmentId/download', verifyToken, downloadAttachment);
 
 export default router;

@@ -7,7 +7,7 @@ export const getUsers = async (req, res) => {
     const limitNum = Math.min(parseInt(limit) || 50, 100);
     const offsetNum = parseInt(offset) || 0;
 
-    let sql = 'SELECT id, username, email, role, created_at FROM users WHERE deleted_at IS NULL';
+    let sql = 'SELECT id, username, email, role, created_at FROM users WHERE 1=1';
     const params = [];
 
     if (role) {
@@ -27,7 +27,7 @@ export const getUsers = async (req, res) => {
     const users = await dbAll(sql, params);
 
     // Get total count for pagination
-    let countSql = 'SELECT COUNT(*) as count FROM users WHERE deleted_at IS NULL';
+    let countSql = 'SELECT COUNT(*) as count FROM users WHERE 1=1';
     const countParams = [];
     if (role) {
       countSql += ' AND role = ?';
@@ -95,7 +95,7 @@ export const createUser = async (req, res) => {
 export const getUserById = async (req, res) => {
   try {
     const { id } = req.params;
-    const user = await dbGet('SELECT id, username, email, role, created_at FROM users WHERE id = ? AND deleted_at IS NULL', [id]);
+    const user = await dbGet('SELECT id, username, email, role, created_at FROM users WHERE id = ?', [id]);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
@@ -180,11 +180,11 @@ export const getAdmins = async (req, res) => {
     const offsetNum = parseInt(offset) || 0;
 
     const admins = await dbAll(
-      'SELECT id, username, email, role, created_at FROM users WHERE role = "admin" AND deleted_at IS NULL ORDER BY created_at DESC LIMIT ? OFFSET ?',
+      'SELECT id, username, email, role, created_at FROM users WHERE role = "admin" ORDER BY created_at DESC LIMIT ? OFFSET ?',
       [limitNum, offsetNum]
     );
 
-    const countResult = await dbGet('SELECT COUNT(*) as count FROM users WHERE role = "admin" AND deleted_at IS NULL');
+    const countResult = await dbGet('SELECT COUNT(*) as count FROM users WHERE role = "admin"');
 
     res.json({
       admins,

@@ -42,7 +42,7 @@ export const getEquipment = async (req, res) => {
     const limitNum = Math.min(parseInt(limit) || 50, 100);
     const offsetNum = parseInt(offset) || 0;
 
-    let sql = 'SELECT equipment.*, users.username FROM equipment LEFT JOIN users ON users.id = equipment.assignedTo WHERE equipment.deleted_at IS NULL';
+    let sql = 'SELECT equipment.*, users.username FROM equipment LEFT JOIN users ON users.id = equipment.assignedTo WHERE 1=1';
     const params = [];
 
     if (type) {
@@ -72,7 +72,7 @@ export const getEquipment = async (req, res) => {
     const equipmentList = await dbAll(sql, params);
 
     // Get total count
-    let countSql = 'SELECT COUNT(*) as count FROM equipment WHERE deleted_at IS NULL';
+    let countSql = 'SELECT COUNT(*) as count FROM equipment WHERE 1=1';
     const countParams = [];
     if (type) {
       countSql += ' AND type = ?';
@@ -148,7 +148,7 @@ export const getUserEquipment = async (req, res) => {
     const limitNum = Math.min(parseInt(limit) || 50, 100);
     const offsetNum = parseInt(offset) || 0;
 
-    let sql = 'SELECT equipment.* FROM equipment WHERE assignedTo = ? AND deleted_at IS NULL';
+    let sql = 'SELECT equipment.* FROM equipment WHERE assignedTo = ?';
     const params = [id];
 
     if (status) {
@@ -162,7 +162,7 @@ export const getUserEquipment = async (req, res) => {
     const equipmentList = await dbAll(sql, params);
 
     // Get total count
-    let countSql = 'SELECT COUNT(*) as count FROM equipment WHERE assignedTo = ? AND deleted_at IS NULL';
+    let countSql = 'SELECT COUNT(*) as count FROM equipment WHERE assignedTo = ?';
     const countParams = [id];
     if (status) {
       countSql += ' AND status = ?';
@@ -192,7 +192,7 @@ export const getEquipmentByType = async (req, res) => {
     const limitNum = Math.min(parseInt(limit) || 50, 100);
     const offsetNum = parseInt(offset) || 0;
 
-    let sql = 'SELECT equipment.*, users.username FROM equipment LEFT JOIN users ON users.id = equipment.assignedTo WHERE equipment.type = ? AND equipment.deleted_at IS NULL';
+    let sql = 'SELECT equipment.*, users.username FROM equipment LEFT JOIN users ON users.id = equipment.assignedTo WHERE equipment.type = ?';
     const params = [type];
 
     if (status) {
@@ -205,7 +205,7 @@ export const getEquipmentByType = async (req, res) => {
 
     const equipmentList = await dbAll(sql, params);
 
-    let countSql = 'SELECT COUNT(*) as count FROM equipment WHERE type = ? AND deleted_at IS NULL';
+    let countSql = 'SELECT COUNT(*) as count FROM equipment WHERE type = ?';
     const countParams = [type];
     if (status) {
       countSql += ' AND status = ?';

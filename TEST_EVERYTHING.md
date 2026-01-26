@@ -39,6 +39,14 @@ Expected output:
 ✅ Database initialized successfully!
 ```
 
+**IMPORTANT**: If you get errors about columns not existing:
+```bash
+# Delete the old database first
+rm data/helpdesk.db
+# Then run migration again
+npm run migrate
+```
+
 ### 2. Start Backend Server
 ```bash
 npm start
@@ -47,6 +55,12 @@ Expected output:
 ```
 🚀 Backend running on http://localhost:5000
 ✓ Connected to SQLite database
+```
+
+⚠️ **Make sure you're in the backend directory**:
+```bash
+cd backend  # If not already there
+npm start
 ```
 
 ### 3. Access Swagger UI
