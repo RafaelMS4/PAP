@@ -1,4 +1,4 @@
-import { dbGet, dbAll, dbRun } from '../config/database.js';
+import { dbGet, dbAll } from '../config/database.js';
 
 export const getDashboardStats = async (req, res) => {
   try {
@@ -10,39 +10,38 @@ export const getDashboardStats = async (req, res) => {
       const openTickets = await dbGet('SELECT COUNT(*) as count FROM tickets WHERE status = "open"');
       const inProgressTickets = await dbGet('SELECT COUNT(*) as count FROM tickets WHERE status = "in_progress"');
       const closedTickets = await dbGet('SELECT COUNT(*) as count FROM tickets WHERE status = "closed"');
-      
       const unassignedTickets = await dbGet('SELECT COUNT(*) as count FROM tickets WHERE assigned_to IS NULL AND status != "closed"');
-      
       const totalUsers = await dbGet('SELECT COUNT(*) as count FROM users WHERE deleted_at IS NULL');
-      const totalEquipment = await dbGet('SELECT COUNT(*) as count FROM equipment');
-      
+      const totalEquipment = await dbGet('SELECT COUNT(*) as count FROM equipment WHERE deleted_at IS NULL');
+
       // High priority tickets
       const urgentTickets = await dbGet('SELECT COUNT(*) as count FROM tickets WHERE priority = "urgent" AND status != "closed"');
-      
+
       // This month's tickets
       const thisMonthTickets = await dbGet(
         'SELECT COUNT(*) as count FROM tickets WHERE strftime("%Y-%m", created_at) = strftime("%Y-%m", "now")'
       );
-      
+
       // Average resolution time (in hours)
       const avgResolutionTime = await dbGet(
-        `SELECT AVG((julianday(updated_at) - julianday(created_at)) * 24) as hours 
-         FROM tickets WHERE status = "closed" AND created_at >= datetime('now', '-30 days')`
+        `SELECT AVG((julianday(resolved_at) - julianday(created_at)) * 24) as hours
+         FROM tickets WHERE status = "closed" AND resolved_at IS NOT NULL AND created_at >= datetime('now', '-30 days')`
       );
-      
-      // Tickets by priority
+
+      // Tickets by priority (active only)
       const ticketsByPriority = await dbAll(
-        'SELECT priority, COUNT(*) as count FROM tickets WHERE status != "closed" GROUP BY priority'
+        'SELECT priority, COUNT(*) as count FROM tickets WHERE status IN ("open", "in_progress") GROUP BY priority'
       );
-      
-      // Most active admins (by time logs)
+
+      // Most active admins (by time logs) - CORRIGIDO
       const topAdmins = await dbAll(
-        `SELECT users.id, users.username, SUM(time_logs.duration) as total_hours 
-         FROM time_logs 
-         JOIN users ON users.id = time_logs.admin_id 
-         WHERE time_logs.date >= datetime('now', '-30 days')
-         GROUP BY users.id 
-         ORDER BY total_hours DESC 
+        `SELECT users.id, users.username, SUM(ticket_time_logs.time_spent) as total_hours
+         FROM users
+         LEFT JOIN ticket_time_logs ON ticket_time_logs.user_id = users.id
+         WHERE users.role = 'admin' AND ticket_time_logs.log_date >= date('now', '-30 days')
+         GROUP BY users.id
+         HAVING total_hours > 0
+         ORDER BY total_hours DESC
          LIMIT 5`
       );
 
@@ -62,7 +61,7 @@ export const getDashboardStats = async (req, res) => {
             total_equipment: totalEquipment.count || 0
           },
           metrics: {
-            avg_resolution_hours: avgResolutionTime.hours ? parseFloat(avgResolutionTime.hours).toFixed(2) : 0
+            avg_resolution_hours: avgResolutionTime?.hours ? parseFloat(avgResolutionTime.hours).toFixed(2) : '0.00'
           },
           top_admins: topAdmins || []
         }
@@ -72,13 +71,13 @@ export const getDashboardStats = async (req, res) => {
       const myOpen = await dbGet('SELECT COUNT(*) as count FROM tickets WHERE user_id = ? AND status = "open"', [userId]);
       const myInProgress = await dbGet('SELECT COUNT(*) as count FROM tickets WHERE user_id = ? AND status = "in_progress"', [userId]);
       const myClosed = await dbGet('SELECT COUNT(*) as count FROM tickets WHERE user_id = ? AND status = "closed"', [userId]);
-      
+
       // Recent tickets
       const recentTickets = await dbAll(
         'SELECT id, title, status, priority, created_at FROM tickets WHERE user_id = ? ORDER BY created_at DESC LIMIT 5',
         [userId]
       );
-      
+
       // Urgent tickets
       const urgentTickets = await dbGet(
         'SELECT COUNT(*) as count FROM tickets WHERE user_id = ? AND priority = "urgent" AND status != "closed"',
@@ -106,12 +105,12 @@ export const getDashboardStats = async (req, res) => {
 export const getTicketStats = async (req, res) => {
   try {
     const stats = await dbAll(
-      `SELECT 
+      `SELECT
         priority,
         status,
         COUNT(*) as count
-      FROM tickets
-      GROUP BY priority, status`
+       FROM tickets
+       GROUP BY priority, status`
     );
 
     res.json({ stats });
@@ -124,18 +123,18 @@ export const getTicketStats = async (req, res) => {
 export const getAdminWorkload = async (req, res) => {
   try {
     const admins = await dbAll(
-      `SELECT 
+      `SELECT
         users.id,
         users.username,
         COUNT(DISTINCT tickets.id) as assigned_tickets,
         SUM(CASE WHEN tickets.status = 'closed' THEN 1 ELSE 0 END) as closed_tickets,
-        SUM(COALESCE(time_logs.duration, 0)) as total_hours
-      FROM users
-      LEFT JOIN tickets ON tickets.assigned_to = users.id
-      LEFT JOIN time_logs ON time_logs.admin_id = users.id
-      WHERE users.role = 'admin'
-      GROUP BY users.id
-      ORDER BY assigned_tickets DESC`
+        COALESCE(SUM(ticket_time_logs.time_spent), 0) as total_hours
+       FROM users
+       LEFT JOIN tickets ON tickets.assigned_to = users.id
+       LEFT JOIN ticket_time_logs ON ticket_time_logs.user_id = users.id
+       WHERE users.role = 'admin'
+       GROUP BY users.id
+       ORDER BY assigned_tickets DESC`
     );
 
     res.json({ workload: admins });

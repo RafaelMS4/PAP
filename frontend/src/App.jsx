@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom'
+import { Box } from '@mui/material'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
 import Sidebar from './components/Navbar.jsx'
@@ -6,18 +7,25 @@ import './styles/global.css'
 
 function PrivateRoute() {
   const token = localStorage.getItem('token')
-  
   if (!token) {
     return <Navigate to="/login" replace />
   }
-
+  
   return (
-    <div style={{ display: 'flex' }}>
+    <Box sx={{ display: 'flex' }}>
       <Sidebar />
-      <main style={{ flex: 1, marginLeft: '250px', padding: '20px' }}>
+      <Box
+        component="main"
+        sx={{
+          flexGrow: 1,
+          bgcolor: '#1c1e1e',
+          minHeight: '100vh',
+          ml: 0,
+        }}
+      >
         <Outlet />
-      </main>
-    </div>
+      </Box>
+    </Box>
   )
 }
 
@@ -25,16 +33,10 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Rota pública - SEM sidebar */}
         <Route path="/login" element={<LoginPage />} />
-        
-        {/* Rotas protegidas - COM sidebar */}
         <Route element={<PrivateRoute />}>
           <Route path="/dashboard" element={<DashboardPage />} />
-          {/* Adiciona aqui as outras rotas protegidas */}
-          {/* <Route path="/users" element={<UsersPage />} /> */}
-          {/* <Route path="/tickets" element={<TicketsPage />} /> */}
-          {/* <Route path="/equipment" element={<EquipmentPage />} /> */}
+          {/* outras rotas */}
         </Route>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
       </Routes>

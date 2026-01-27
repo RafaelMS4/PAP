@@ -10,17 +10,10 @@ export default function Sidebar() {
   const [user, setUser] = useState({ username: 'User' });
 
   useEffect(() => {
-    // Buscar info do user do localStorage ou API
     const token = localStorage.getItem('token');
     if (token) {
-      // Opção 1: Se guardas o user no localStorage
       const userData = JSON.parse(localStorage.getItem('user') || '{}');
       setUser(userData);
-      
-      // Opção 2: Se precisas buscar da API
-      // fetch('/api/auth/me', { headers: { Authorization: `Bearer ${token}` }})
-      //   .then(res => res.json())
-      //   .then(data => setUser(data.user));
     }
   }, []);
 
