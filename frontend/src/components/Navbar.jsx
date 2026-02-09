@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText, IconButton, Box, Divider, Avatar } from '@mui/material';
-import { Dashboard, People, Assignment, Computer, ChevronLeft, Menu, Logout } from '@mui/icons-material';
+import { Dashboard, People, Assignment, Computer, ChevronLeft, Menu, Logout, Person } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 
-export default function Sidebar() {
+export default function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
   const [open, setOpen] = useState(true);
-  const [user, setUser] = useState({ username: 'User' });
+  const [user, setUser] = useState({ name: 'User', role: 'user' });
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -23,11 +23,24 @@ export default function Sidebar() {
     navigate('/login');
   };
 
-  const menuItems = [
-    { text: 'Dashboard', icon: <Dashboard />, path: '/dashboard' },
+  const commonMenuItems = user.role === 'admin' 
+    ? [{ text: 'Dashboard', icon: <Dashboard />, path: '/dashboard' }]
+    : [{ text: 'Dashboard', icon: <Dashboard />, path: '/user-dashboard' }];
+
+  const ticketMenuItems = user.role === 'admin' 
+    ? [
+        { text: 'Meus Tickets', icon: <Assignment />, path: '/my-tickets' },
+        { text: 'Tickets', icon: <Assignment />, path: '/tickets' }
+      ]
+    : [];
+
+  const adminTicketItems = [
+    { text: 'Fila de Tickets', icon: <Assignment />, path: '/admin/queue' }
+  ];
+
+  const adminMenuItems = [
     { text: 'Utilizadores', icon: <People />, path: '/users' },
-    { text: 'Tickets', icon: <Assignment />, path: '/tickets' },
-    { text: 'Equipamentos', icon: <Computer />, path: '/equipment' },
+    { text: 'Equipamentos', icon: <Computer />, path: '/equipment' }
   ];
 
   const drawerWidth = open ? 250 : 70;
@@ -63,7 +76,22 @@ export default function Sidebar() {
         }}
       >
         {open && (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Box 
+            sx={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: 1.5,
+              cursor: 'pointer',
+              borderRadius: '8px',
+              p: 0.5,
+              margin: -0.5,
+              transition: 'background-color 0.2s',
+              '&:hover': {
+                bgcolor: '#2a2a2a',
+              }
+            }}
+            onClick={() => navigate('/profile')}
+          >
             <Avatar
               sx={{
                 width: 35,
@@ -72,14 +100,14 @@ export default function Sidebar() {
                 fontSize: '16px',
               }}
             >
-              {user.username?.[0]?.toUpperCase() || 'U'}
+              {user.name?.[0]?.toUpperCase() || 'U'}
             </Avatar>
             <Box>
               <Box sx={{ fontSize: '15px', fontWeight: 600 }}>
-                {user.username || 'User'}
+                {user.name || 'User'}
               </Box>
               <Box sx={{ fontSize: '12px', color: '#999' }}>
-                {user.role || 'Admin'}
+                {user.role === 'admin' ? 'Administrador' : 'Utilizador'}
               </Box>
             </Box>
           </Box>
@@ -99,7 +127,8 @@ export default function Sidebar() {
 
       {/* Menu items */}
       <List sx={{ pt: 2, flex: 1 }}>
-        {menuItems.map((item) => {
+        {/* Common sections */}
+        {commonMenuItems.map((item) => {
           const isActive = location.pathname === item.path;
 
           return (
@@ -140,6 +169,146 @@ export default function Sidebar() {
             </ListItem>
           );
         })}
+
+        {/* Tickets section - only for admins */}
+        {user.role === 'admin' && (
+          <>
+            {open && <Box sx={{ px: 2, my: 1, color: '#666', fontSize: '12px', fontWeight: 600 }}>TICKETS</Box>}
+
+            {ticketMenuItems.map((item) => {
+          const isActive = location.pathname === item.path;
+
+          return (
+            <ListItem key={item.text} disablePadding sx={{ px: 1, mb: 0.5 }}>
+              <ListItemButton
+                onClick={() => navigate(item.path)}
+                sx={{
+                  borderRadius: '8px',
+                  justifyContent: open ? 'initial' : 'center',
+                  bgcolor: isActive ? '#2a2a2a' : 'transparent',
+                  '&:hover': {
+                    bgcolor: '#2a2a2a',
+                  },
+                }}
+              >
+                <ListItemIcon
+                  sx={{
+                    color: isActive ? 'rgb(61, 106, 255)' : '#999',
+                    minWidth: 0,
+                    mr: open ? 2 : 'auto',
+                    justifyContent: 'center',
+                  }}
+                >
+                  {item.icon}
+                </ListItemIcon>
+                {open && (
+                  <ListItemText
+                    primary={item.text}
+                    sx={{
+                      '& .MuiTypography-root': {
+                        fontSize: '15px',
+                        fontWeight: isActive ? 600 : 500,
+                      },
+                    }}
+                  />
+                )}
+              </ListItemButton>
+            </ListItem>
+          );
+        })}
+
+        {/* Admin ticket items */}
+        {adminTicketItems.map((item) => {
+          const isActive = location.pathname === item.path;
+
+          return (
+            <ListItem key={item.text} disablePadding sx={{ px: 1, mb: 0.5 }}>
+              <ListItemButton
+                onClick={() => navigate(item.path)}
+                sx={{
+                  borderRadius: '8px',
+                  justifyContent: open ? 'initial' : 'center',
+                  bgcolor: isActive ? '#2a2a2a' : 'transparent',
+                  '&:hover': {
+                    bgcolor: '#2a2a2a',
+                  },
+                }}
+              >
+                <ListItemIcon
+                  sx={{
+                    color: isActive ? 'rgb(61, 106, 255)' : '#999',
+                    minWidth: 0,
+                    mr: open ? 2 : 'auto',
+                    justifyContent: 'center',
+                  }}
+                >
+                  {item.icon}
+                </ListItemIcon>
+                {open && (
+                  <ListItemText
+                    primary={item.text}
+                    sx={{
+                      '& .MuiTypography-root': {
+                        fontSize: '15px',
+                        fontWeight: isActive ? 600 : 500,
+                      },
+                    }}
+                  />
+                )}
+              </ListItemButton>
+            </ListItem>
+          );
+        })}
+          </>
+        )}
+
+        {/* Admin only section */}
+        {user.role === 'admin' && (
+          <>
+            {open && <Box sx={{ px: 2, my: 1, color: '#666', fontSize: '12px', fontWeight: 600 }}>ADMINISTRAÇÃO</Box>}
+            {adminMenuItems.map((item) => {
+              const isActive = location.pathname === item.path;
+
+              return (
+                <ListItem key={item.text} disablePadding sx={{ px: 1, mb: 0.5 }}>
+                  <ListItemButton
+                    onClick={() => navigate(item.path)}
+                    sx={{
+                      borderRadius: '8px',
+                      justifyContent: open ? 'initial' : 'center',
+                      bgcolor: isActive ? '#2a2a2a' : 'transparent',
+                      '&:hover': {
+                        bgcolor: '#2a2a2a',
+                      },
+                    }}
+                  >
+                    <ListItemIcon
+                      sx={{
+                        color: isActive ? 'rgb(61, 106, 255)' : '#999',
+                        minWidth: 0,
+                        mr: open ? 2 : 'auto',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      {item.icon}
+                    </ListItemIcon>
+                    {open && (
+                      <ListItemText
+                        primary={item.text}
+                        sx={{
+                          '& .MuiTypography-root': {
+                            fontSize: '15px',
+                            fontWeight: isActive ? 600 : 500,
+                          },
+                        }}
+                      />
+                    )}
+                  </ListItemButton>
+                </ListItem>
+              );
+            })}
+          </>
+        )}
       </List>
 
       <Divider sx={{ bgcolor: '#2a2a2a' }} />

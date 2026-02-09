@@ -1,5 +1,5 @@
 import express from 'express';
-import { creatEquipment, getEquipment, getEquipmentById, deleteEquipment, getUserEquipment, updateEquipment, getEquipmentByType } from '../controllers/equipmentController.js';
+import { creatEquipment, getEquipment, getEquipmentById, deleteEquipment, getUserEquipment, updateEquipment, getEquipmentByType, assignEquipmentToUser, unassignEquipment } from '../controllers/equipmentController.js';
 import { verifyToken, isAdmin } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -242,5 +242,70 @@ router.delete('/deleteEquipment/:id', verifyToken, isAdmin, deleteEquipment);
  *         description: Unauthorized
  */
 router.get('/type/:type', verifyToken, getEquipmentByType);
+
+/**
+ * @swagger
+ * /equipment/{equipmentId}/assign:
+ *   put:
+ *     summary: Assign equipment to user
+ *     description: Assigns equipment to a specific user (admin only)
+ *     tags:
+ *       - Equipment
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: equipmentId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               userId:
+ *                 type: integer
+ *             required:
+ *               - userId
+ *     responses:
+ *       200:
+ *         description: Equipment assigned successfully
+ *       400:
+ *         description: Invalid request
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Equipment or user not found
+ */
+router.put('/:equipmentId/assign', verifyToken, isAdmin, assignEquipmentToUser);
+
+/**
+ * @swagger
+ * /equipment/{equipmentId}/unassign:
+ *   put:
+ *     summary: Unassign equipment from user
+ *     description: Removes equipment assignment from user (admin only)
+ *     tags:
+ *       - Equipment
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: equipmentId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Equipment unassigned successfully
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Equipment not found
+ */
+router.put('/:equipmentId/unassign', verifyToken, isAdmin, unassignEquipment);
 
 export default router;

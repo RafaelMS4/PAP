@@ -966,8 +966,8 @@ export const updateTicketPriority = async (req, res) => {
 
     // Log action in history
     await dbRun(
-      'INSERT INTO ticket_history (ticket_id, action, changed_by, change_details) VALUES (?, ?, ?, ?)',
-      [id, 'priority_changed', req.userId, JSON.stringify({ old_priority: req.body.old_priority, new_priority: priority })]
+      'INSERT INTO ticket_history (ticket_id, user_id, action, field_changed, old_value, new_value) VALUES (?, ?, ?, ?, ?, ?)',
+      [id, req.userId, 'priority_changed', 'priority', req.body.old_priority || '', priority]
     );
 
     const ticket = await dbGet('SELECT * FROM tickets WHERE id = ?', [id]);
@@ -998,8 +998,8 @@ export const updateTicketStatus = async (req, res) => {
 
     // Log action in history
     await dbRun(
-      'INSERT INTO ticket_history (ticket_id, action, changed_by, change_details) VALUES (?, ?, ?, ?)',
-      [id, 'status_changed', req.userId, JSON.stringify({ new_status: status })]
+      'INSERT INTO ticket_history (ticket_id, user_id, action, field_changed, old_value, new_value) VALUES (?, ?, ?, ?, ?, ?)',
+      [id, req.userId, 'status_changed', 'status', req.body.old_status || '', status]
     );
 
     const ticket = await dbGet('SELECT * FROM tickets WHERE id = ?', [id]);

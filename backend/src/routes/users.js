@@ -101,7 +101,7 @@ router.get('/getUsers', verifyToken, isAdmin, getUsers);
  *       500:
  *         description: Server error
  */
-router.get('/getUserByID/:id', verifyToken, isAdmin, getUsers);
+router.get('/getUserByID/:id', verifyToken, isAdmin, getUserById);
 
 /**
  * @swagger

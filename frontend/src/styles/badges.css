@@ -1,0 +1,26 @@
+/* Badge Styles */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.badge-status {
+  border: 1px solid;
+  background: transparent;
+}
+
+.badge-priority {
+  background-color: var(--bg-card);
+  color: var(--text-primary);
+}
+
+.badge-role {
+  background-color: var(--bg-darker);
+  color: var(--text-primary);
+}

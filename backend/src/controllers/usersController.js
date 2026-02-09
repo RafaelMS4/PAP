@@ -3,11 +3,11 @@ import { dbGet, dbAll, dbRun } from '../config/database.js';
 
 export const getUsers = async (req, res) => {
   try {
-    const { role, search, limit = 50, offset = 0 } = req.query;
+    const { role, search, name, limit = 50, offset = 0 } = req.query;
     const limitNum = Math.min(parseInt(limit) || 50, 100);
     const offsetNum = parseInt(offset) || 0;
 
-    let sql = 'SELECT id, username, email, role, created_at FROM users WHERE 1=1';
+    let sql = 'SELECT id, name, email, role, created_at FROM users WHERE deleted_at IS NULL';
     const params = [];
 
     if (role) {
@@ -15,9 +15,10 @@ export const getUsers = async (req, res) => {
       params.push(role);
     }
 
-    if (search) {
-      sql += ' AND (username LIKE ? OR email LIKE ?)';
-      const searchPattern = `%${search}%`;
+    const searchValue = search || name;
+    if (searchValue) {
+      sql += ' AND (name LIKE ? OR email LIKE ?)';
+      const searchPattern = `%${searchValue}%`;
       params.push(searchPattern, searchPattern);
     }
 
@@ -27,23 +28,24 @@ export const getUsers = async (req, res) => {
     const users = await dbAll(sql, params);
 
     // Get total count for pagination
-    let countSql = 'SELECT COUNT(*) as count FROM users WHERE 1=1';
+    let countSql = 'SELECT COUNT(*) as count FROM users WHERE deleted_at IS NULL';
     const countParams = [];
     if (role) {
       countSql += ' AND role = ?';
       countParams.push(role);
     }
-    if (search) {
-      countSql += ' AND (username LIKE ? OR email LIKE ?)';
-      const searchPattern = `%${search}%`;
+    if (searchValue) {
+      countSql += ' AND (name LIKE ? OR email LIKE ?)';
+      const searchPattern = `%${searchValue}%`;
       countParams.push(searchPattern, searchPattern);
     }
 
     const countResult = await dbGet(countSql, countParams);
     const total = countResult.count;
 
-    res.json({ 
+    res.json({
       users,
+      total,
       pagination: {
         total,
         limit: limitNum,
@@ -59,29 +61,30 @@ export const getUsers = async (req, res) => {
 
 export const createUser = async (req, res) => {
   try {
-    const { username, password, email, role } = req.body;
+    const { name, username, password, email, role } = req.body;
+    const userName = username || name;
 
-    if (!username || !password || !email) {
-      return res.status(400).json({ error: 'Username, password, and email required' });
+    if (!name || !password || !email) {
+      return res.status(400).json({ error: 'Name, password, and email required' });
     }
 
-    const existingUser = await dbGet('SELECT id FROM users WHERE username = ? OR email = ?', [username, email]);
+    const existingUser = await dbGet('SELECT id FROM users WHERE email = ?', [email]);
     if (existingUser) {
-      return res.status(400).json({ error: 'User or email already exists' });
+      return res.status(400).json({ error: 'Email already exists' });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const result = await dbRun(
-      'INSERT INTO users (username, password, email, role) VALUES (?, ?, ?, ?)',
-      [username, hashedPassword, email, role || 'user']
+      'INSERT INTO users (name, username, password, email, role) VALUES (?, ?, ?, ?, ?)',
+      [name, userName, hashedPassword, email, role || 'user']
     );
 
     res.status(201).json({
       message: 'User created successfully',
       user: {
         id: result.lastID,
-        username,
+        name,
         email,
         role: role || 'user'
       }
@@ -95,7 +98,7 @@ export const createUser = async (req, res) => {
 export const getUserById = async (req, res) => {
   try {
     const { id } = req.params;
-    const user = await dbGet('SELECT id, username, email, role, created_at FROM users WHERE id = ?', [id]);
+    const user = await dbGet('SELECT id, name, email, role, created_at FROM users WHERE id = ?', [id]);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
@@ -124,7 +127,7 @@ export const deleteUser = async (req, res) => {
 export const updateUser = async (req, res) => {
   try {
     const { id } = req.params;
-    const { username, email, role } = req.body;
+    const { name, username, email, role } = req.body;
 
     const user = await dbGet('SELECT * FROM users WHERE id = ?', [id]);
     if (!user) {
@@ -134,6 +137,10 @@ export const updateUser = async (req, res) => {
     const updates = [];
     const values = [];
 
+    if (name !== undefined) {
+      updates.push('name = ?');
+      values.push(name);
+    }
     if (username !== undefined) {
       updates.push('username = ?');
       values.push(username);
@@ -158,7 +165,7 @@ export const updateUser = async (req, res) => {
     await dbRun(sql, values);
 
     const updatedUser = await dbGet(
-      'SELECT id, username, email, role, created_at FROM users WHERE id = ?',
+      'SELECT id, name, email, role, created_at FROM users WHERE id = ?',
       [id]
     );
 
@@ -180,7 +187,7 @@ export const getAdmins = async (req, res) => {
     const offsetNum = parseInt(offset) || 0;
 
     const admins = await dbAll(
-      'SELECT id, username, email, role, created_at FROM users WHERE role = "admin" ORDER BY created_at DESC LIMIT ? OFFSET ?',
+      'SELECT id, name, email, role, created_at FROM users WHERE role = "admin" ORDER BY created_at DESC LIMIT ? OFFSET ?',
       [limitNum, offsetNum]
     );
 

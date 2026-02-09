@@ -33,6 +33,7 @@ export const login = async (req, res) => {
       token,
       user: {
         id: user.id,
+        name: user.name,
         username: user.username,
         email: user.email,
         role: user.role
@@ -46,7 +47,7 @@ export const login = async (req, res) => {
 
 export const getCurrentUser = async (req, res) => {
   try {
-    const user = await dbGet('SELECT id, username, email, role FROM users WHERE id = ?', [req.userId]);
+    const user = await dbGet('SELECT id, name, username, email, role FROM users WHERE id = ?', [req.userId]);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }

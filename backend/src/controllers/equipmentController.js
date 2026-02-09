@@ -2,20 +2,15 @@ import { dbGet, dbAll, dbRun } from '../config/database.js';
 
 export const creatEquipment = async (req, res) => {
   try {
-    const { name, type, serialNumber, assignedTo, maintenance, status = 'active' } = req.body;
+    const { name, type, model, location, status = 'available' } = req.body;
 
-    if (!name || !type || !serialNumber || !assignedTo || !maintenance) {
-      return res.status(400).json({ error: 'All fields are required' });
-    }
-
-    const ExistingPC = await dbGet('SELECT id FROM equipment WHERE serialNumber = ?', [serialNumber]);
-    if (ExistingPC) {
-      return res.status(400).json({ error: 'Equipment with this serial number already exists' });
+    if (!name || !type || !location) {
+      return res.status(400).json({ error: 'Name, type, and location are required' });
     }
 
     const result = await dbRun(
-      'INSERT INTO equipment (name, type, serialNumber, assignedTo, maintenance, status) VALUES (?, ?, ?, ?, ?, ?)',
-      [name, type, serialNumber, assignedTo, maintenance, status]
+      'INSERT INTO equipment (name, type, model, location, status) VALUES (?, ?, ?, ?, ?)',
+      [name, type, model || null, location, status]
     );
 
     res.status(201).json({
@@ -24,9 +19,8 @@ export const creatEquipment = async (req, res) => {
         id: result.lastID,
         name,
         type,
-        serialNumber,
-        assignedTo,
-        maintenance,
+        model: model || null,
+        location,
         status
       }
     });
@@ -38,11 +32,11 @@ export const creatEquipment = async (req, res) => {
 
 export const getEquipment = async (req, res) => {
   try {
-    const { type, status, assignedTo, search, limit = 50, offset = 0 } = req.query;
+    const { type, status, search, name, limit = 50, offset = 0 } = req.query;
     const limitNum = Math.min(parseInt(limit) || 50, 100);
     const offsetNum = parseInt(offset) || 0;
 
-    let sql = 'SELECT equipment.*, users.username FROM equipment LEFT JOIN users ON users.id = equipment.assignedTo WHERE 1=1';
+    let sql = 'SELECT equipment.*, users.name as assigned_user_name FROM equipment LEFT JOIN users ON users.id = equipment.assigned_to WHERE equipment.deleted_at IS NULL';
     const params = [];
 
     if (type) {
@@ -55,14 +49,10 @@ export const getEquipment = async (req, res) => {
       params.push(status);
     }
 
-    if (assignedTo) {
-      sql += ' AND equipment.assignedTo = ?';
-      params.push(assignedTo);
-    }
-
-    if (search) {
-      sql += ' AND (equipment.name LIKE ? OR equipment.serialNumber LIKE ?)';
-      const searchPattern = `%${search}%`;
+    const searchValue = search || name;
+    if (searchValue) {
+      sql += ' AND (equipment.name LIKE ? OR equipment.location LIKE ?)';
+      const searchPattern = `%${searchValue}%`;
       params.push(searchPattern, searchPattern);
     }
 
@@ -72,7 +62,7 @@ export const getEquipment = async (req, res) => {
     const equipmentList = await dbAll(sql, params);
 
     // Get total count
-    let countSql = 'SELECT COUNT(*) as count FROM equipment WHERE 1=1';
+    let countSql = 'SELECT COUNT(*) as count FROM equipment WHERE deleted_at IS NULL';
     const countParams = [];
     if (type) {
       countSql += ' AND type = ?';
@@ -82,21 +72,18 @@ export const getEquipment = async (req, res) => {
       countSql += ' AND status = ?';
       countParams.push(status);
     }
-    if (assignedTo) {
-      countSql += ' AND assignedTo = ?';
-      countParams.push(assignedTo);
-    }
-    if (search) {
-      countSql += ' AND (name LIKE ? OR serialNumber LIKE ?)';
-      const searchPattern = `%${search}%`;
+    if (searchValue) {
+      countSql += ' AND (name LIKE ? OR location LIKE ?)';
+      const searchPattern = `%${searchValue}%`;
       countParams.push(searchPattern, searchPattern);
     }
 
     const countResult = await dbGet(countSql, countParams);
     const total = countResult.count;
 
-    res.json({ 
+    res.json({
       equipment: equipmentList,
+      total,
       pagination: {
         total,
         limit: limitNum,
@@ -113,7 +100,7 @@ export const getEquipmentById = async (req, res) => {
   try {
     const { id } = req.params;
     const equipment = await dbGet(
-      'SELECT equipment.*, users.username FROM equipment LEFT JOIN users ON users.id = equipment.assignedTo WHERE equipment.id = ?',
+      'SELECT equipment.*, users.name as assigned_user_name FROM equipment LEFT JOIN users ON users.id = equipment.assigned_to WHERE equipment.id = ? AND equipment.deleted_at IS NULL',
       [id]
     );
     if (!equipment) {
@@ -148,21 +135,21 @@ export const getUserEquipment = async (req, res) => {
     const limitNum = Math.min(parseInt(limit) || 50, 100);
     const offsetNum = parseInt(offset) || 0;
 
-    let sql = 'SELECT equipment.* FROM equipment WHERE assignedTo = ?';
+    let sql = 'SELECT equipment.*, users.name as assigned_user_name FROM equipment LEFT JOIN users ON users.id = equipment.assigned_to WHERE equipment.assigned_to = ? AND equipment.deleted_at IS NULL';
     const params = [id];
 
     if (status) {
-      sql += ' AND status = ?';
+      sql += ' AND equipment.status = ?';
       params.push(status);
     }
 
-    sql += ' ORDER BY type ASC, name ASC LIMIT ? OFFSET ?';
+    sql += ' ORDER BY equipment.type ASC, equipment.name ASC LIMIT ? OFFSET ?';
     params.push(limitNum, offsetNum);
 
     const equipmentList = await dbAll(sql, params);
 
     // Get total count
-    let countSql = 'SELECT COUNT(*) as count FROM equipment WHERE assignedTo = ?';
+    let countSql = 'SELECT COUNT(*) as count FROM equipment WHERE assigned_to = ? AND deleted_at IS NULL';
     const countParams = [id];
     if (status) {
       countSql += ' AND status = ?';
@@ -231,7 +218,7 @@ export const getEquipmentByType = async (req, res) => {
 export const updateEquipment = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, type, serialNumber, assignedTo, maintenance, status } = req.body;
+    const { name, type, model, location, status, assigned_to, assignedTo } = req.body;
 
     const equipment = await dbGet('SELECT * FROM equipment WHERE id = ?', [id]);
     if (!equipment) {
@@ -249,27 +236,30 @@ export const updateEquipment = async (req, res) => {
       updates.push('type = ?');
       values.push(type);
     }
-    if (serialNumber !== undefined) {
-      updates.push('serialNumber = ?');
-      values.push(serialNumber);
+    if (model !== undefined) {
+      updates.push('model = ?');
+      values.push(model);
     }
-    if (assignedTo !== undefined) {
-      updates.push('assignedTo = ?');
-      values.push(assignedTo);
-    }
-    if (maintenance !== undefined) {
-      updates.push('maintenance = ?');
-      values.push(maintenance);
+    if (location !== undefined) {
+      updates.push('location = ?');
+      values.push(location);
     }
     if (status !== undefined) {
       updates.push('status = ?');
       values.push(status);
+    }
+    // Accept both camelCase and snake_case
+    const assignedToValue = assignedTo !== undefined ? assignedTo : assigned_to;
+    if (assignedToValue !== undefined) {
+      updates.push('assigned_to = ?');
+      values.push(assignedToValue);
     }
 
     if (updates.length === 0) {
       return res.status(400).json({ error: 'No fields to update' });
     }
 
+    updates.push('updated_at = CURRENT_TIMESTAMP');
     values.push(id);
 
     await dbRun(
@@ -277,18 +267,79 @@ export const updateEquipment = async (req, res) => {
       values
     );
 
+    const updatedEquipment = await dbGet('SELECT * FROM equipment WHERE id = ?', [id]);
+    res.json({ message: 'Equipment updated successfully', equipment: updatedEquipment });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+export const assignEquipmentToUser = async (req, res) => {
+  try {
+    const { equipmentId } = req.params;
+    const { userId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID is required' });
+    }
+
+    // Check if equipment exists
+    const equipment = await dbGet('SELECT * FROM equipment WHERE id = ?', [equipmentId]);
+    if (!equipment) {
+      return res.status(404).json({ error: 'Equipment not found' });
+    }
+
+    // Check if user exists
+    const user = await dbGet('SELECT * FROM users WHERE id = ?', [userId]);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Assign equipment
+    await dbRun(
+      'UPDATE equipment SET assigned_to = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      [userId, 'in_use', equipmentId]
+    );
+
     const updatedEquipment = await dbGet(
-      'SELECT equipment.*, users.username FROM equipment LEFT JOIN users ON users.id = equipment.assignedTo WHERE equipment.id = ?',
-      [id]
+      'SELECT equipment.*, users.name as assigned_user_name FROM equipment LEFT JOIN users ON users.id = equipment.assigned_to WHERE equipment.id = ?',
+      [equipmentId]
     );
 
     res.json({ 
-      message: 'Equipment updated successfully',
+      message: 'Equipment assigned successfully',
       equipment: updatedEquipment 
     });
-
   } catch (error) {
-    console.error('Update equipment error:', error);
+    console.error('Assign equipment error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+export const unassignEquipment = async (req, res) => {
+  try {
+    const { equipmentId } = req.params;
+
+    // Check if equipment exists
+    const equipment = await dbGet('SELECT * FROM equipment WHERE id = ?', [equipmentId]);
+    if (!equipment) {
+      return res.status(404).json({ error: 'Equipment not found' });
+    }
+
+    // Unassign equipment
+    await dbRun(
+      'UPDATE equipment SET assigned_to = NULL, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      ['available', equipmentId]
+    );
+
+    const updatedEquipment = await dbGet('SELECT * FROM equipment WHERE id = ?', [equipmentId]);
+
+    res.json({ 
+      message: 'Equipment unassigned successfully',
+      equipment: updatedEquipment 
+    });
+  } catch (error) {
+    console.error('Unassign equipment error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 };
