@@ -1,5 +1,5 @@
 import express from 'express';
-import { getDashboardStats, getTicketStats, getAdminWorkload } from '../controllers/dashboardController.js';
+import { getDashboardStats, getTicketStats, getAdminWorkload, getTicketTrend } from '../controllers/dashboardController.js';
 import { verifyToken, isAdmin } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -66,4 +66,7 @@ router.get('/ticket-stats', verifyToken, getTicketStats);
  */
 router.get('/admin-workload', verifyToken, isAdmin, getAdminWorkload);
 
+router.get('/ticket-trend', verifyToken, getTicketTrend);
+
 export default router;
+

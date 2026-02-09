@@ -3,6 +3,20 @@ import { useNavigate } from 'react-router-dom';
 import api from '../api';
 import { StatusPieChart, PriorityBarChart, TicketsTrendChart, AdminPerformanceChart } from '../components/Charts';
 import '../styles/dashboard.css';
+import { 
+  Assignment, 
+  Schedule, 
+  CheckCircle, 
+  WarningAmber, 
+  NotificationsActive, 
+  TrendingUp, 
+  People, 
+  Computer,
+  AutoAwesome,
+  RefreshOutlined,
+  AccessTime,
+  EmojiEvents
+} from '@mui/icons-material';
 
 // Componente otimizado para StatCard
 const StatCard = memo(({ title, value, icon, color, subtitle }) => (
@@ -89,12 +103,14 @@ const PriorityChart = memo(({ priorities, total }) => (
 
 export default function DashboardPage() {
   const [stats, setStats] = useState(null);
+  const [trendData, setTrendData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
     fetchDashboardStats();
+    fetchTrendData();
   }, []);
 
   const fetchDashboardStats = async () => {
@@ -113,6 +129,16 @@ export default function DashboardPage() {
     }
   };
 
+  // 👇 NOVA FUNÇÃO
+  const fetchTrendData = async () => {
+    try {
+      const response = await api.get('/dashboard/ticket-trend');
+      setTrendData(response.data.trend);
+    } catch (error) {
+      console.error('Erro ao buscar trend:', error);
+    }
+  };
+
   // Memoized calculated values
   const totalActiveTickets = useMemo(() => {
     if (!stats?.tickets) return 0;
@@ -124,28 +150,28 @@ export default function DashboardPage() {
     { 
       title: 'Abertos', 
       value: stats?.tickets?.open || 0, 
-      icon: '📋',
+      icon: <Assignment sx={{ fontSize: '1.5rem' }} />,
       color: '#ff9800',
       subtitle: 'Aguardando'
     },
     { 
       title: 'Em Progresso', 
       value: stats?.tickets?.in_progress || 0, 
-      icon: '⏳',
+      icon: <Schedule sx={{ fontSize: '1.5rem' }} />,
       color: '#2196f3',
       subtitle: 'Trabalhando'
     },
     { 
       title: 'Fechados', 
       value: stats?.tickets?.closed || 0, 
-      icon: '✓',
+      icon: <CheckCircle sx={{ fontSize: '1.5rem' }} />,
       color: '#4caf50',
       subtitle: 'Resolvidos'
     },
     { 
       title: 'Urgentes', 
       value: stats?.tickets?.urgent || 0, 
-      icon: '⚠️',
+      icon: <WarningAmber sx={{ fontSize: '1.5rem' }} />,
       color: '#f44336',
       subtitle: 'Críticos'
     }
@@ -155,25 +181,25 @@ export default function DashboardPage() {
     {
       title: 'Não Atribuídos',
       value: stats?.tickets?.unassigned || 0,
-      icon: '🔔',
+      icon: <NotificationsActive sx={{ fontSize: '1.5rem' }} />,
       color: '#ff6b6b'
     },
     {
       title: 'Este Mês',
       value: stats?.tickets?.this_month || 0,
-      icon: '📈',
+      icon: <TrendingUp sx={{ fontSize: '1.5rem' }} />,
       color: '#9c27b0'
     },
     {
       title: 'Utilizadores',
       value: stats?.system?.total_users || 0,
-      icon: '👥',
+      icon: <People sx={{ fontSize: '1.5rem' }} />,
       color: '#00bcd4'
     },
     {
       title: 'Equipamentos',
       value: stats?.system?.total_equipment || 0,
-      icon: '💻',
+      icon: <Computer sx={{ fontSize: '1.5rem' }} />,
       color: '#ff5722'
     }
   ], [stats]);
@@ -191,7 +217,7 @@ export default function DashboardPage() {
     return (
       <div className="dashboard-error">
         <div className="error-content">
-          <p className="error-title">⚠️ Erro ao carregar dados</p>
+          <p className="error-title"><WarningAmber sx={{ fontSize: '1.5rem', mr: 1 }} /> Erro ao carregar dados</p>
           <p className="error-message">{error}</p>
           <button className="retry-btn" onClick={fetchDashboardStats}>
             Tentar novamente
@@ -224,8 +250,11 @@ export default function DashboardPage() {
             })}
           </p>
         </div>
-        <button className="refresh-btn" onClick={fetchDashboardStats}>
-          🔄 Atualizar
+        <button className="refresh-btn" onClick={() => {
+          fetchDashboardStats();
+          fetchTrendData();
+        }}>
+          <RefreshOutlined sx={{ fontSize: '1rem', mr: 0.5 }} /> Atualizar
         </button>
       </div>
 
@@ -246,11 +275,10 @@ export default function DashboardPage() {
       {/* Charts Grid */}
       <div className="charts-grid">
         <StatusPieChart data={stats.tickets} />
-        <PriorityBarChart data={stats.tickets?.by_priority} />
         {stats.top_admins && stats.top_admins.length > 0 && (
           <AdminPerformanceChart admins={stats.top_admins} />
         )}
-        <TicketsTrendChart stats={stats} />
+        <TicketsTrendChart data={trendData} />
       </div>
 
       {/* Charts Section */}
@@ -258,7 +286,7 @@ export default function DashboardPage() {
         {/* Resolution Time Card */}
         <div className="chart-card resolution-time">
           <div className="card-header">
-            <h3>⏱️ Tempo Médio de Resolução</h3>
+            <h3><AccessTime sx={{ fontSize: '1.5rem', mr: 1 }} />Tempo Médio de Resolução</h3>
           </div>
           <div className="chart-content">
             <p className="big-number">{stats.metrics?.avg_resolution_hours || 0}h</p>
@@ -269,7 +297,7 @@ export default function DashboardPage() {
         {/* Priority Distribution Card */}
         <div className="chart-card priority-distribution">
           <div className="card-header">
-            <h3>📊 Tickets por Prioridade</h3>
+            <h3><AutoAwesome sx={{ fontSize: '1.5rem', mr: 1 }} />Tickets por Prioridade</h3>
           </div>
           <div className="chart-content">
             <PriorityChart 
@@ -284,7 +312,7 @@ export default function DashboardPage() {
       {stats.top_admins && stats.top_admins.length > 0 && (
         <div className="top-admins-card">
           <div className="card-header">
-            <h3>🏆 Top 5 Admins Mais Ativos</h3>
+            <h3><EmojiEvents sx={{ fontSize: '1.5rem', mr: 1 }} />Top 5 Admins Mais Ativos</h3>
             <p className="card-subtitle">Últimos 30 dias</p>
           </div>
           <AdminTable admins={stats.top_admins} />

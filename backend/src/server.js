@@ -8,6 +8,15 @@ import { specs } from './config/swagger.js';
 import routes from './routes/index.js';
 import './config/database.js';
 
+// Error handling for unhandled rejections
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+process.on('uncaughtException', (error) => {
+  console.error('❌ Uncaught Exception:', error);
+  process.exit(1);
+});
 dotenv.config();
 
 const app = express();

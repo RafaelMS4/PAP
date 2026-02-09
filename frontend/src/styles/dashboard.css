@@ -142,7 +142,6 @@ body {
 
 .refresh-btn:hover {
   background: var(--border);
-  transform: rotate(180deg);
 }
 
 @media (max-width: 768px) {
@@ -268,6 +267,7 @@ body {
 
 .card-header {
   margin-bottom: 1.5rem;
+  color: white;
 }
 
 .card-header h3 {

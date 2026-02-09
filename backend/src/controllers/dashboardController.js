@@ -143,3 +143,58 @@ export const getAdminWorkload = async (req, res) => {
     res.status(500).json({ error: 'Erro ao buscar carga de trabalho' });
   }
 };
+
+export const getTicketTrend = async (req, res) => {
+  try {
+    // Get tickets created in last 7 days
+    const ticketsCreated = await dbAll(`
+      SELECT 
+        DATE(created_at, 'localtime') as date,
+        COUNT(*) as total
+      FROM tickets 
+      WHERE DATE(created_at, 'localtime') BETWEEN DATE('now','localtime','-6 days') AND DATE('now','localtime')
+      GROUP BY DATE(created_at, 'localtime')
+      ORDER BY date ASC
+    `, []);
+
+    // Get tickets closed in last 7 days
+    const ticketsClosed = await dbAll(`
+      SELECT 
+        DATE(updated_at, 'localtime') as date,
+        COUNT(*) as total
+      FROM tickets 
+      WHERE status = 'closed'
+        AND DATE(updated_at, 'localtime') BETWEEN DATE('now','localtime','-6 days') AND DATE('now','localtime')
+      GROUP BY DATE(updated_at, 'localtime')
+      ORDER BY date ASC
+    `, []);
+
+    // Build 7-day trend
+    const result = [];
+    const today = new Date();
+
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      const dateStr = `${yyyy}-${mm}-${dd}`;
+      const dayDisplay = `${dd}/${mm}`;
+
+      const created = (ticketsCreated || []).find(t => t?.date === dateStr);
+      const closed = (ticketsClosed || []).find(t => t?.date === dateStr);
+
+      result.push({
+        day: dayDisplay,
+        abertos: created ? Number(created.total) : 0,
+        fechados: closed ? Number(closed.total) : 0
+      });
+    }
+
+    res.json({ trend: result });
+  } catch (error) {
+    console.error('Erro ao obter tendência:', error);
+    res.status(500).json({ error: 'Erro ao obter tendência' });
+  }
+};
