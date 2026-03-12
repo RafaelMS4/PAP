@@ -92,6 +92,11 @@
   margin-bottom: 2rem;
 }
 
+.detail-page .stat-card {
+  border: none;
+  border-left: 4px solid var(--primary);
+}
+
 .stat-card {
   display: flex;
   align-items: center;
@@ -106,6 +111,13 @@
 
 .stat-card:hover {
   transform: translateY(-2px);
+  border-color: transparent;
+  border-left-color: var(--primary);
+}
+
+.profile-sections {
+  display: grid;
+  gap: 1.5rem;
 }
 
 .stat-icon {
@@ -352,4 +364,222 @@
     grid-template-columns: 1fr;
     gap: 1.5rem;
   }
+
+  .ticket-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ======== Ticket Detail Page Styles ======== */
+
+.ticket-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 350px;
+  gap: 2rem;
+  align-items: start;
+}
+
+.ticket-detail-main {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.ticket-detail-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.detail-card-box {
+  background: var(--bg-card, #242626);
+  border-radius: 10px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.detail-card-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 1rem;
+}
+
+.sidebar-card {
+  background: var(--bg-card, #242626);
+  border-radius: 10px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.sidebar-card-title {
+  font-size: 0.85rem;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 0.75rem;
+  font-weight: 600;
+}
+
+/* Clickable link style */
+.clickable-link {
+  color: #3d6aff;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-weight: 600;
+}
+
+.clickable-link:hover {
+  color: #5580ff;
+  text-decoration: underline;
+}
+
+/* Comments */
+.comment-item {
+  background: #1c1e1e;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  border: 1px solid #2a2a2a;
+}
+
+.comment-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.comment-author-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.comment-date {
+  color: #666;
+  font-size: 0.8rem;
+}
+
+.comment-text {
+  color: #ccc;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Tasks */
+.task-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #1c1e1e;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.5rem;
+  border: 1px solid #2a2a2a;
+  border-left: 3px solid #ff9800;
+}
+
+.task-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  flex: 1;
+}
+
+.task-icon {
+  font-size: 1rem;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* Time Logs */
+.time-log-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #1c1e1e;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.5rem;
+  border: 1px solid #2a2a2a;
+}
+
+.time-log-content {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex: 1;
+}
+
+.time-log-duration {
+  background: #3d6aff;
+  color: #fff;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* Equipment in Ticket */
+.equipment-ticket-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #1c1e1e;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.5rem;
+  border: 1px solid #2a2a2a;
+}
+
+.equipment-ticket-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+/* History */
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.history-item {
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #2a2a2a;
+}
+
+.history-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.history-action {
+  color: #ccc;
+  font-size: 0.9rem;
+}
+
+.history-meta {
+  color: #666;
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
+}
+
+/* Small icon button */
+.btn-icon-small {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 0.25rem;
+  opacity: 0.5;
+  transition: opacity 0.2s;
+}
+
+.btn-icon-small:hover {
+  opacity: 1;
 }

@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import CloseIcon from '@mui/icons-material/Close';
 import '../styles/modal.css';
 
 export const Modal = memo(({ isOpen, title, onClose, children, size = 'medium' }) => {
@@ -9,7 +10,7 @@ export const Modal = memo(({ isOpen, title, onClose, children, size = 'medium' }
       <div className={`modal modal-${size}`} onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2>{title}</h2>
-          <button className="modal-close" onClick={onClose}>✕</button>
+          <button className="modal-close" onClick={onClose}><CloseIcon sx={{ fontSize: '1.2rem' }} /></button>
         </div>
         <div className="modal-body">
           {children}

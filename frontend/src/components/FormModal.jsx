@@ -120,7 +120,7 @@ export const FormModal = memo(({
             className="btn btn-primary" 
             disabled={loading}
           >
-            {loading ? '⏳ Enviando...' : 'Enviar'}
+            {loading ? 'Enviando...' : 'Enviar'}
           </button>
         </div>
       </form>

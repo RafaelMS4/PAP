@@ -6,6 +6,9 @@ import FilterBar from '../components/FilterBar';
 import Pagination from '../components/Pagination';
 import FormModal from '../components/FormModal';
 import { ConfirmModal } from '../components/Modal';
+import { getEmailUsername, buildHelpdeskEmail, HELPDESK_EMAIL_DOMAIN } from '../utils/email';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
 import '../styles/list-page.css';
 
 export default function UsersPage() {
@@ -51,9 +54,16 @@ export default function UsersPage() {
   const handleCreateUser = async (formData) => {
     try {
       setFormLoading(true);
+      const normalizedEmail = buildHelpdeskEmail(formData.email);
+
+      if (!normalizedEmail) {
+        alert(`Email inválido. Usa apenas @${HELPDESK_EMAIL_DOMAIN}`);
+        return;
+      }
+
       await api.post('/users/createUser', {
         name: formData.name,
-        email: formData.email,
+        email: normalizedEmail,
         password: formData.password,
         role: formData.role || 'user'
       });
@@ -71,9 +81,16 @@ export default function UsersPage() {
   const handleEditUser = async (formData) => {
     try {
       setFormLoading(true);
+      const normalizedEmail = buildHelpdeskEmail(formData.email);
+
+      if (!normalizedEmail) {
+        alert(`Email inválido. Usa apenas @${HELPDESK_EMAIL_DOMAIN}`);
+        return;
+      }
+
       await api.put(`/users/updateUser/${editModal.user.id}`, {
         name: formData.name,
-        email: formData.email,
+        email: normalizedEmail,
         role: formData.role
       });
       setEditModal({ open: false, user: null });
@@ -119,7 +136,8 @@ export default function UsersPage() {
     },
     {
       label: 'Email',
-      key: 'email'
+      key: 'email',
+      render: (value) => getEmailUsername(value)
     },
     {
       label: 'Função',
@@ -187,13 +205,13 @@ export default function UsersPage() {
           {
             id: 'edit',
             label: 'Editar utilizador',
-            icon: '✏️',
+            icon: <EditIcon sx={{ fontSize: '1.1rem' }} />,
             onClick: (user) => setEditModal({ open: true, user })
           },
           {
             id: 'delete',
             label: 'Eliminar utilizador',
-            icon: '🗑️',
+            icon: <DeleteIcon sx={{ fontSize: '1.1rem' }} />,
             onClick: (user) => setDeleteModal({ open: true, id: user.id })
           }
         ]}
@@ -221,10 +239,11 @@ export default function UsersPage() {
           },
           {
             name: 'email',
-            label: 'Email',
+            label: `Email (sem @${HELPDESK_EMAIL_DOMAIN})`,
             type: 'text',
             required: true,
-            placeholder: 'exemplo@email.com'
+            placeholder: 'nome.apelido',
+            help: `Domínio fixo: @${HELPDESK_EMAIL_DOMAIN}`
           },
           {
             name: 'password',
@@ -261,10 +280,11 @@ export default function UsersPage() {
           },
           {
             name: 'email',
-            label: 'Email',
+            label: `Email (sem @${HELPDESK_EMAIL_DOMAIN})`,
             type: 'text',
             required: true,
-            placeholder: 'exemplo@email.com'
+            placeholder: 'nome.apelido',
+            help: `Domínio fixo: @${HELPDESK_EMAIL_DOMAIN}`
           },
           {
             name: 'role',
@@ -276,7 +296,7 @@ export default function UsersPage() {
             ]
           }
         ]}
-        initialData={editModal.user}
+        initialData={editModal.user ? { ...editModal.user, email: getEmailUsername(editModal.user.email) } : null}
         onSubmit={handleEditUser}
         onClose={() => setEditModal({ open: false, user: null })}
         loading={formLoading}

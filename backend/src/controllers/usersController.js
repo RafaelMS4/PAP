@@ -1,6 +1,41 @@
 import bcrypt from 'bcryptjs';
 import { dbGet, dbAll, dbRun } from '../config/database.js';
 
+const EMAIL_DOMAIN = 'helpdesk.pt';
+
+const normalizeHelpdeskEmail = (emailValue) => {
+  if (typeof emailValue !== 'string') {
+    return null;
+  }
+
+  const cleanedEmail = emailValue.trim().toLowerCase();
+  if (!cleanedEmail) {
+    return null;
+  }
+
+  const emailParts = cleanedEmail.split('@');
+
+  if (emailParts.length === 1) {
+    const localPart = emailParts[0];
+    if (!localPart) {
+      return null;
+    }
+    return `${localPart}@${EMAIL_DOMAIN}`;
+  }
+
+  if (emailParts.length !== 2) {
+    return null;
+  }
+
+  const [localPart, domainPart] = emailParts;
+
+  if (!localPart || domainPart !== EMAIL_DOMAIN) {
+    return null;
+  }
+
+  return `${localPart}@${EMAIL_DOMAIN}`;
+};
+
 export const getUsers = async (req, res) => {
   try {
     const { role, search, name, limit = 50, offset = 0 } = req.query;
@@ -63,12 +98,17 @@ export const createUser = async (req, res) => {
   try {
     const { name, username, password, email, role } = req.body;
     const userName = username || name;
+    const normalizedEmail = normalizeHelpdeskEmail(email);
 
     if (!name || !password || !email) {
       return res.status(400).json({ error: 'Name, password, and email required' });
     }
 
-    const existingUser = await dbGet('SELECT id FROM users WHERE email = ?', [email]);
+    if (!normalizedEmail) {
+      return res.status(400).json({ error: 'Email inválido. Usa apenas @helpdesk.pt' });
+    }
+
+    const existingUser = await dbGet('SELECT id FROM users WHERE email = ?', [normalizedEmail]);
     if (existingUser) {
       return res.status(400).json({ error: 'Email already exists' });
     }
@@ -77,7 +117,7 @@ export const createUser = async (req, res) => {
 
     const result = await dbRun(
       'INSERT INTO users (name, username, password, email, role) VALUES (?, ?, ?, ?, ?)',
-      [name, userName, hashedPassword, email, role || 'user']
+      [name, userName, hashedPassword, normalizedEmail, role || 'user']
     );
 
     res.status(201).json({
@@ -85,7 +125,7 @@ export const createUser = async (req, res) => {
       user: {
         id: result.lastID,
         name,
-        email,
+        email: normalizedEmail,
         role: role || 'user'
       }
     });
@@ -146,8 +186,22 @@ export const updateUser = async (req, res) => {
       values.push(username);
     }
     if (email !== undefined) {
+      const normalizedEmail = normalizeHelpdeskEmail(email);
+      if (!normalizedEmail) {
+        return res.status(400).json({ error: 'Email inválido. Usa apenas @helpdesk.pt' });
+      }
+
+      const duplicateEmailUser = await dbGet(
+        'SELECT id FROM users WHERE email = ? AND id != ?',
+        [normalizedEmail, id]
+      );
+
+      if (duplicateEmailUser) {
+        return res.status(400).json({ error: 'Email already exists' });
+      }
+
       updates.push('email = ?');
-      values.push(email);
+      values.push(normalizedEmail);
     }
     if (role !== undefined) {
       updates.push('role = ?');

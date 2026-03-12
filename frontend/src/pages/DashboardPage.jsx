@@ -50,7 +50,7 @@ const AdminTable = memo(({ admins }) => (
               backgroundColor: index === 0 ? '#ffd700' : index === 1 ? '#c0c0c0' : index === 2 ? '#cd7f32' : '#3d6aff' 
             }}>{index + 1}</span></td>
             <td className="admin-name">{admin.username}</td>
-            <td className="text-right admin-hours">{admin.total_hours?.toFixed(1)}h</td>
+            <td className="text-right admin-hours">{(admin.total_hours / 60).toFixed(1)}h</td>
           </tr>
         ))}
       </tbody>
@@ -129,7 +129,7 @@ export default function DashboardPage() {
     }
   };
 
-  // 👇 NOVA FUNÇÃO
+  // NOVA FUNÇÃO
   const fetchTrendData = async () => {
     try {
       const response = await api.get('/dashboard/ticket-trend');

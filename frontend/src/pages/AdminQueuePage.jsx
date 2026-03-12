@@ -6,6 +6,10 @@ import FilterBar from '../components/FilterBar';
 import Pagination from '../components/Pagination';
 import FormModal from '../components/FormModal';
 import { Modal } from '../components/Modal';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import PanToolIcon from '@mui/icons-material/PanTool';
+import AssignmentIcon from '@mui/icons-material/Assignment';
+import DeleteIcon from '@mui/icons-material/Delete';
 import '../styles/list-page.css';
 
 export default function AdminQueuePage() {
@@ -66,9 +70,25 @@ export default function AdminQueuePage() {
     try {
       setAssignLoading(true);
       await api.put(`/tickets/${assignModal.ticket.id}/assign`, {
-        admin_id: formData.admin_id
+        assigned_to: formData.admin_id
       });
       setAssignModal({ open: false, ticket: null });
+      fetchTickets();
+    } catch (error) {
+      console.error('Erro ao atribuir ticket:', error);
+      alert('Erro ao atribuir ticket');
+    } finally {
+      setAssignLoading(false);
+    }
+  };
+
+  const handleAssignToMe = async (ticket) => {
+    try {
+      setAssignLoading(true);
+      const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+      await api.put(`/tickets/${ticket.id}/assign`, {
+        assigned_to: currentUser.id
+      });
       fetchTickets();
     } catch (error) {
       console.error('Erro ao atribuir ticket:', error);
@@ -106,27 +126,22 @@ export default function AdminQueuePage() {
 
   const columns = [
     {
-      header: 'ID',
-      accessor: 'id',
+      label: 'ID',
+      key: 'id',
       render: (value) => `#${value.toString().padStart(4, '0')}`
     },
     {
-      header: 'Título',
-      accessor: 'title'
+      label: 'Título',
+      key: 'title'
     },
     {
-      header: 'Utilizador',
-      accessor: 'user_name',
-      render: (value) => value || '-'
+      label: 'Criado por',
+      key: 'creator_display_name',
+      render: (value, row) => value || row.creator_name || '-'
     },
     {
-      header: 'Admin Atribuído',
-      accessor: 'admin_name',
-      render: (value) => value || 'Não atribuído'
-    },
-    {
-      header: 'Status',
-      accessor: 'status',
+      label: 'Status',
+      key: 'status',
       render: (value) => {
         const statusMap = { open: 'Aberto', in_progress: 'Em Progresso', closed: 'Fechado' };
         const colors = { open: '#ff9800', in_progress: '#3d6aff', closed: '#4caf50' };
@@ -138,8 +153,8 @@ export default function AdminQueuePage() {
       }
     },
     {
-      header: 'Prioridade',
-      accessor: 'priority',
+      label: 'Prioridade',
+      key: 'priority',
       render: (value) => {
         const priorityMap = { low: 'Baixa', medium: 'Média', high: 'Elevada', urgent: 'Urgente' };
         const colors = { low: '#4caf50', medium: '#3d6aff', high: '#ff9800', urgent: '#f44336' };
@@ -149,6 +164,11 @@ export default function AdminQueuePage() {
           </span>
         );
       }
+    },
+    {
+      label: 'Data',
+      key: 'created_at',
+      render: (value) => new Date(value).toLocaleDateString('pt-PT')
     }
   ];
 
@@ -195,20 +215,32 @@ export default function AdminQueuePage() {
 
       <Table
         columns={columns}
-        data={tickets}
+        rows={tickets}
         loading={loading}
         onRowClick={(ticket) => navigate(`/tickets/${ticket.id}`)}
         actions={[
           {
-            icon: '👁️',
+            id: 'view',
+            icon: <VisibilityIcon sx={{ fontSize: '1.1rem' }} />,
+            label: 'Ver ticket',
             onClick: (ticket) => navigate(`/tickets/${ticket.id}`)
           },
           {
-            icon: '📋',
+            id: 'assign-me',
+            icon: <PanToolIcon sx={{ fontSize: '1.1rem' }} />,
+            label: 'Ficar com ticket',
+            onClick: (ticket) => handleAssignToMe(ticket)
+          },
+          {
+            id: 'assign',
+            icon: <AssignmentIcon sx={{ fontSize: '1.1rem' }} />,
+            label: 'Atribuir a outro',
             onClick: (ticket) => setAssignModal({ open: true, ticket })
           },
           {
-            icon: '🗑️',
+            id: 'delete',
+            icon: <DeleteIcon sx={{ fontSize: '1.1rem' }} />,
+            label: 'Eliminar',
             onClick: (ticket) => setDeleteModal({ open: true, id: ticket.id })
           }
         ]}
@@ -225,7 +257,7 @@ export default function AdminQueuePage() {
       {/* Modals */}
       <FormModal
         isOpen={assignModal.open}
-        title="Atribuir Ticket"
+        title={`Atribuir Ticket ${assignModal.ticket ? '#' + assignModal.ticket.id : ''}`}
         fields={[
           {
             name: 'admin_id',

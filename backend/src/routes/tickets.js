@@ -104,6 +104,19 @@ const checkTicketAccess = async (req, res, next) => {
  */
 router.post('/', verifyToken, createTicket);
 
+// IMPORTANT: These routes MUST come before /:id routes to avoid matching 'my', 'admin', 'stats', 'attachments' as an :id param
+// My Tickets - Get tickets created by current user (or assigned to admin)
+router.get('/my/tickets', verifyToken, getMyTickets);
+
+// Admin Queue - Get unassigned tickets (admin only)
+router.get('/admin/queue', verifyToken, isAdmin, getAdminQueue);
+
+// Admin hours statistics
+router.get('/stats/admin-hours', verifyToken, isAdmin, getAdminHours);
+
+// Download attachment
+router.get('/attachments/:attachmentId/download', verifyToken, downloadAttachment);
+
 /**
  * @swagger
  * /tickets:
@@ -694,28 +707,6 @@ router.delete('/:id/time-logs/:logId', verifyToken, isAdmin, deleteTimeLog);
 
 /**
  * @swagger
- * /tickets/stats/admin-hours:
- *   get:
- *     summary: Get admin hours statistics
- *     description: Gets total hours logged by each admin
- *     tags:
- *       - Statistics
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Statistics retrieved successfully
- *       401:
- *         description: Unauthorized
- *       403:
- *         description: Forbidden - admins only
- *       500:
- *         description: Internal server error
- */
-router.get('/stats/admin-hours', verifyToken, isAdmin, getAdminHours);
-
-/**
- * @swagger
  * /tickets/{id}/attachments:
  *   post:
  *     summary: Add attachment to ticket
@@ -929,19 +920,10 @@ router.get('/:id/equipment', verifyToken, checkTicketAccess, getTicketEquipment)
  */
 router.delete('/:id/equipment/:equipmentId', verifyToken, checkTicketAccess, removeEquipmentFromTicket);
 
-// My Tickets - Get tickets created by the current user
-router.get('/my/tickets', verifyToken, getMyTickets);
-
-// Admin Queue - Get unassigned tickets (admin only)
-router.get('/admin/queue', verifyToken, isAdmin, getAdminQueue);
-
 // Update ticket priority
 router.put('/:id/priority', verifyToken, isAdmin, updateTicketPriority);
 
 // Update ticket status
 router.put('/:id/status', verifyToken, isAdmin, updateTicketStatus);
-
-// Download attachment
-router.get('/attachments/:attachmentId/download', verifyToken, downloadAttachment);
 
 export default router;

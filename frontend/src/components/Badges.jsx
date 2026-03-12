@@ -3,16 +3,19 @@ import '../styles/badges.css';
 
 export const StatusBadge = memo(({ status }) => {
   const config = {
-    open: { label: 'Aberto', color: '#ff9800', icon: '🔴' },
-    in_progress: { label: 'Em Progresso', color: '#2196f3', icon: '🟡' },
-    closed: { label: 'Fechado', color: '#4caf50', icon: '🟢' }
+    open: { label: 'Aberto', color: '#ff9800' },
+    in_progress: { label: 'Em Progresso', color: '#2196f3' },
+    waiting: { label: 'Aguardando', color: '#9c27b0' },
+    resolved: { label: 'Resolvido', color: '#4caf50' },
+    closed: { label: 'Fechado', color: '#4caf50' }
   };
 
-  const data = config[status] || { label: status, color: '#999', icon: '⚪' };
+  const data = config[status] || { label: status, color: '#999' };
 
   return (
     <span className="badge badge-status" style={{ borderColor: data.color, color: data.color }}>
-      {data.icon} {data.label}
+      <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', backgroundColor: data.color, marginRight: 6, verticalAlign: 'middle' }} />
+      {data.label}
     </span>
   );
 });

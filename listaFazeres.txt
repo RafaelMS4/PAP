@@ -1,3 +1,7 @@
-CRUDs Tickets
-
-FAZER UIIIII
+Criei um novo utilizador e na aba tickets do seu perfil aparece tickets de outro user
+Na interface do ticket mostrar quem criou
+Tickets nao atribuidos aparecem no "Fila de Tickets", resolver isso e fazer todo o processo de atribuir ticket ou seja o admin escolhe ficar com aquele e depois aparece nos meus tickets do admin e na interface do ticket o admin atribuido
+Atribuir equipamentos ao ticket e mostrar na interface
+Todos os users e equipamentos na interface do ticket serem clicaveis e levar ao perfil da cena
+arranjar as mensagens nos tickets 
+colocar tarefas no ticket para contar tempo

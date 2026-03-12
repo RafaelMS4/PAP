@@ -57,7 +57,7 @@ export default function UserDashboardPage() {
   const handleCreateTicket = async (formData) => {
     try {
       setFormLoading(true);
-      await api.post('/tickets/createTicket', {
+      await api.post('/tickets', {
         title: formData.title,
         description: formData.description,
         priority: formData.priority || 'medium',

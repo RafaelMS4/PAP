@@ -50,9 +50,12 @@ export const getAllTickets = async (req, res) => {
     const userId = req.userId;
     const userRole = req.userRole;
 
+    const { user_id } = req.query;
+
     let query = `
       SELECT t.*, 
              u.username as creator_name,
+             u.name as creator_display_name,
              a.username as assigned_name
       FROM tickets t
       LEFT JOIN users u ON t.user_id = u.id
@@ -65,6 +68,12 @@ export const getAllTickets = async (req, res) => {
     if (userRole !== 'admin') {
       query += ' AND t.user_id = ?';
       params.push(userId);
+    }
+
+    // Allow filtering by user_id (for admin viewing a specific user's tickets)
+    if (user_id && userRole === 'admin') {
+      query += ' AND t.user_id = ?';
+      params.push(user_id);
     }
 
     if (status) {
@@ -96,9 +105,11 @@ export const getTicketById = async (req, res) => {
 
     const ticket = await dbGet(
       `SELECT t.*, 
-              u.username as creator_name, 
+              u.username as creator_name,
+              u.name as creator_display_name,
               u.email as creator_email,
               a.username as assigned_name,
+              a.name as assigned_display_name,
               e.name as equipment_name
        FROM tickets t
        LEFT JOIN users u ON t.user_id = u.id
@@ -231,15 +242,16 @@ export const deleteTicket = async (req, res) => {
 export const assignTicket = async (req, res) => {
   try {
     const { id } = req.params;
-    const { assigned_to } = req.body;
+    const { assigned_to, admin_id } = req.body;
     const userId = req.userId;
+    const assigneeId = assigned_to || admin_id || userId;
 
     const ticket = await dbGet('SELECT * FROM tickets WHERE id = ?', [id]);
     if (!ticket) {
       return res.status(404).json({ error: 'Ticket não encontrado' });
     }
 
-    if (!assigned_to) {
+    if (!assigneeId) {
       return res.status(400).json({ error: 'assigned_to é obrigatório' });
     }
 
@@ -247,15 +259,22 @@ export const assignTicket = async (req, res) => {
       `UPDATE tickets 
        SET assigned_to = ?, status = 'in_progress', updated_at = CURRENT_TIMESTAMP
        WHERE id = ?`,
-      [assigned_to, id]
+      [assigneeId, id]
     );
 
     await dbRun(
       'INSERT INTO ticket_history (ticket_id, user_id, action, field_changed, old_value, new_value) VALUES (?, ?, ?, ?, ?, ?)',
-      [id, userId, 'assignment_changed', 'assigned_to', ticket.assigned_to || 'unassigned', assigned_to]
+      [id, userId, 'assignment_changed', 'assigned_to', ticket.assigned_to || 'unassigned', assigneeId]
     );
 
-    const updatedTicket = await dbGet('SELECT * FROM tickets WHERE id = ?', [id]);
+    const updatedTicket = await dbGet(
+      `SELECT t.*, u.username as creator_name, u.name as creator_display_name,
+              a.username as assigned_name, a.name as assigned_display_name
+       FROM tickets t
+       LEFT JOIN users u ON t.user_id = u.id
+       LEFT JOIN users a ON t.assigned_to = a.id
+       WHERE t.id = ?`, [id]
+    );
     
     res.json({ 
       message: 'Ticket atribuído com sucesso',
@@ -271,7 +290,7 @@ export const assignTicket = async (req, res) => {
 export const addComment = async (req, res) => {
   try {
     const { id } = req.params;
-    const { message, comment_type = 'comment', is_internal = false } = req.body;
+    const { message, comment_type = 'comment', is_internal = false, time_spent } = req.body;
     const userId = req.userId;
     const userRole = req.userRole;
 
@@ -295,12 +314,26 @@ export const addComment = async (req, res) => {
       [id, userId, comment_type, message, is_internal ? 1 : 0]
     );
 
+    // If task has time_spent, create a time log entry
+    if (comment_type === 'task' && time_spent && parseInt(time_spent) > 0) {
+      await dbRun(
+        `INSERT INTO ticket_time_logs (ticket_id, user_id, time_spent, description)
+         VALUES (?, ?, ?, ?)`,
+        [id, userId, parseInt(time_spent), message]
+      );
+    }
+
     const comment = await dbGet(
       `SELECT tc.*, u.username FROM ticket_comments tc
        LEFT JOIN users u ON tc.user_id = u.id
        WHERE tc.id = ?`,
       [result.lastID]
     );
+
+    // Attach time_spent to the response if provided
+    if (comment && time_spent) {
+      comment.time_spent = parseInt(time_spent);
+    }
 
     res.status(201).json({ 
       message: 'Comentário adicionado com sucesso',
@@ -322,7 +355,12 @@ export const getComments = async (req, res) => {
     }
 
     const comments = await dbAll(
-      `SELECT tc.*, u.username, u.email FROM ticket_comments tc
+      `SELECT tc.*, u.username, u.email,
+       (SELECT ttl.time_spent FROM ticket_time_logs ttl 
+        WHERE ttl.ticket_id = tc.ticket_id AND ttl.user_id = tc.user_id 
+        AND ttl.description = tc.message
+        ORDER BY ttl.created_at DESC LIMIT 1) as time_spent
+       FROM ticket_comments tc
        LEFT JOIN users u ON tc.user_id = u.id
        WHERE tc.ticket_id = ?
        ORDER BY tc.created_at DESC`,
@@ -843,30 +881,50 @@ export const getMyTickets = async (req, res) => {
   try {
     const { status, priority, limit = 50, offset = 0 } = req.query;
     const userId = req.userId;
+    const userRole = req.userRole;
     const limitNum = Math.min(parseInt(limit) || 50, 100);
     const offsetNum = parseInt(offset) || 0;
 
-    let sql = 'SELECT * FROM tickets WHERE user_id = ?';
-    const params = [userId];
+    // For admins, show tickets assigned to them; for users, show tickets they created
+    let sql;
+    const params = [];
+    if (userRole === 'admin') {
+      sql = `SELECT t.*, u.username as creator_name, u.name as creator_display_name
+             FROM tickets t LEFT JOIN users u ON t.user_id = u.id
+             WHERE t.assigned_to = ?`;
+      params.push(userId);
+    } else {
+      sql = `SELECT t.*, u.username as creator_name, u.name as creator_display_name
+             FROM tickets t LEFT JOIN users u ON t.user_id = u.id
+             WHERE t.user_id = ?`;
+      params.push(userId);
+    }
 
     if (status) {
-      sql += ' AND status = ?';
+      sql += ' AND t.status = ?';
       params.push(status);
     }
 
     if (priority) {
-      sql += ' AND priority = ?';
+      sql += ' AND t.priority = ?';
       params.push(priority);
     }
 
-    sql += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
+    sql += ' ORDER BY t.created_at DESC LIMIT ? OFFSET ?';
     params.push(limitNum, offsetNum);
 
     const tickets = await dbAll(sql, params);
 
     // Get total count
-    let countSql = 'SELECT COUNT(*) as count FROM tickets WHERE user_id = ?';
-    const countParams = [userId];
+    let countSql;
+    const countParams = [];
+    if (userRole === 'admin') {
+      countSql = 'SELECT COUNT(*) as count FROM tickets WHERE assigned_to = ?';
+      countParams.push(userId);
+    } else {
+      countSql = 'SELECT COUNT(*) as count FROM tickets WHERE user_id = ?';
+      countParams.push(userId);
+    }
     if (status) {
       countSql += ' AND status = ?';
       countParams.push(status);
@@ -899,7 +957,9 @@ export const getAdminQueue = async (req, res) => {
     const limitNum = Math.min(parseInt(limit) || 50, 100);
     const offsetNum = parseInt(offset) || 0;
 
-    let sql = 'SELECT tickets.*, users.username FROM tickets LEFT JOIN users ON users.id = tickets.user_id WHERE tickets.assigned_to IS NULL AND tickets.status != "closed"';
+    let sql = `SELECT tickets.*, users.username as creator_name, users.name as creator_display_name 
+               FROM tickets LEFT JOIN users ON users.id = tickets.user_id 
+               WHERE tickets.assigned_to IS NULL AND tickets.status != 'closed'`;
     const params = [];
 
     if (priority) {
@@ -983,7 +1043,7 @@ export const updateTicketStatus = async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
 
-    if (!['open', 'in_progress', 'closed'].includes(status)) {
+    if (!['open', 'in_progress', 'waiting', 'resolved', 'closed'].includes(status)) {
       return res.status(400).json({ error: 'Status inválido' });
     }
 

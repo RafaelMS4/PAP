@@ -11,7 +11,9 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ComputerIcon from '@mui/icons-material/Computer';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import CloseIcon from '@mui/icons-material/Close';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import { getEmailUsername, buildHelpdeskEmail, HELPDESK_EMAIL_DOMAIN } from '../utils/email';
 import '../styles/detail-page.css';
 
 export default function UserDetailPage() {
@@ -87,9 +89,16 @@ export default function UserDetailPage() {
   const handleUpdateUser = async (formData) => {
     try {
       setFormLoading(true);
+      const normalizedEmail = buildHelpdeskEmail(formData.email);
+
+      if (!normalizedEmail) {
+        alert(`Email inválido. Usa apenas @${HELPDESK_EMAIL_DOMAIN}`);
+        return;
+      }
+
       await api.put(`/users/updateUser/${id}`, {
         name: formData.name,
-        email: formData.email,
+        email: normalizedEmail,
         role: formData.role
       });
       setEditModal(false);
@@ -269,6 +278,8 @@ export default function UserDetailPage() {
     );
   }
 
+  const emailUsername = getEmailUsername(user.email);
+
   return (
     <div className="detail-page">
       {/* Header */}
@@ -288,7 +299,7 @@ export default function UserDetailPage() {
         </div>
         <div className="detail-title">
           <h1>{user.name}</h1>
-          <p className="user-email">{user.email}</p>
+          <p className="user-email">{emailUsername}</p>
         </div>
       </div>
 
@@ -366,7 +377,7 @@ export default function UserDetailPage() {
               </div>
               <div className="info-item">
                 <label>Email</label>
-                <p>{user.email}</p>
+                <p>{emailUsername}</p>
               </div>
               <div className="info-item">
                 <label>Função</label>
@@ -439,7 +450,7 @@ export default function UserDetailPage() {
                   {
                     id: 'unassign',
                     label: 'Desatribuir equipamento',
-                    icon: '✖️',
+                    icon: <CloseIcon sx={{ fontSize: '1.1rem' }} />,
                     onClick: (item) => {
                       if (confirm(`Desatribuir "${item.name}" deste utilizador?`)) {
                         handleUnassignEquipment(item.id);
@@ -467,10 +478,11 @@ export default function UserDetailPage() {
           },
           {
             name: 'email',
-            label: 'Email',
+            label: `Email (sem @${HELPDESK_EMAIL_DOMAIN})`,
             type: 'text',
             required: true,
-            placeholder: 'email@exemplo.com'
+            placeholder: 'nome.apelido',
+            help: `Domínio fixo: @${HELPDESK_EMAIL_DOMAIN}`
           },
           {
             name: 'role',
@@ -482,7 +494,7 @@ export default function UserDetailPage() {
             ]
           }
         ]}
-        initialData={user}
+        initialData={{ ...user, email: emailUsername }}
         onSubmit={handleUpdateUser}
         onClose={() => setEditModal(false)}
         loading={formLoading}
@@ -526,7 +538,7 @@ export default function UserDetailPage() {
                   }}
                 >
                   <div className="equipment-item-main">
-                    <div className="equipment-item-icon">💻</div>
+                    <div className="equipment-item-icon"><ComputerIcon sx={{ fontSize: '1.5rem' }} /></div>
                     <div>
                       <div className="equipment-item-name">{item.name}</div>
                       <div className="equipment-item-details">

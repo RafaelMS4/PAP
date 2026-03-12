@@ -12,6 +12,7 @@ import PersonIcon from '@mui/icons-material/Person';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import { getEmailUsername } from '../utils/email';
 import '../styles/detail-page.css';
 
 export default function EquipmentDetailPage() {
@@ -45,7 +46,7 @@ export default function EquipmentDetailPage() {
     if (searchQuery) {
       const filtered = availableUsers.filter(user =>
         user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        user.email.toLowerCase().includes(searchQuery.toLowerCase())
+        getEmailUsername(user.email).toLowerCase().includes(searchQuery.toLowerCase())
       );
       setFilteredUsers(filtered);
     } else {
@@ -161,10 +162,10 @@ export default function EquipmentDetailPage() {
 
   const getStatusInfo = () => {
     const statusMap = {
-      available: { label: 'Disponível', color: '#4caf50', icon: '✓' },
-      in_use: { label: 'Em Uso', color: '#3d6aff', icon: '●' },
-      maintenance: { label: 'Manutenção', color: '#ff9800', icon: '⚠' },
-      retired: { label: 'Reformado', color: '#999', icon: '✕' }
+      available: { label: 'Disponível', color: '#4caf50' },
+      in_use: { label: 'Em Uso', color: '#3d6aff' },
+      maintenance: { label: 'Manutenção', color: '#ff9800' },
+      retired: { label: 'Reformado', color: '#999' }
     };
     return statusMap[equipment?.status] || statusMap.available;
   };
@@ -353,7 +354,7 @@ export default function EquipmentDetailPage() {
                 </div>
                 <div className="info-item">
                   <label>Email</label>
-                  <p>{assignedUser.email}</p>
+                  <p>{getEmailUsername(assignedUser.email)}</p>
                 </div>
                 <div className="info-item">
                   <label>Função</label>
@@ -456,7 +457,7 @@ export default function EquipmentDetailPage() {
                   <div>
                     <div className="equipment-item-name">{user.name}</div>
                     <div className="equipment-item-details">
-                      {user.email}
+                      {getEmailUsername(user.email)}
                       {user.role && (
                         <span style={{
                           marginLeft: '0.5rem',

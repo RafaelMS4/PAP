@@ -6,6 +6,8 @@ import FilterBar from '../components/FilterBar';
 import Pagination from '../components/Pagination';
 import FormModal from '../components/FormModal';
 import { Modal } from '../components/Modal';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import DeleteIcon from '@mui/icons-material/Delete';
 import '../styles/list-page.css';
 
 export default function MyTicketsPage() {
@@ -96,20 +98,25 @@ export default function MyTicketsPage() {
 
   const columns = [
     {
-      header: 'ID',
-      accessor: 'id',
+      label: 'ID',
+      key: 'id',
       render: (value) => `#${value.toString().padStart(4, '0')}`
     },
     {
-      header: 'Título',
-      accessor: 'title'
+      label: 'Título',
+      key: 'title'
     },
     {
-      header: 'Status',
-      accessor: 'status',
+      label: 'Criado por',
+      key: 'creator_display_name',
+      render: (value, row) => value || row.creator_name || '-'
+    },
+    {
+      label: 'Status',
+      key: 'status',
       render: (value) => {
-        const statusMap = { open: 'Aberto', in_progress: 'Em Progresso', closed: 'Fechado' };
-        const colors = { open: '#ff9800', in_progress: '#3d6aff', closed: '#4caf50' };
+        const statusMap = { open: 'Aberto', in_progress: 'Em Progresso', waiting: 'Aguardando', resolved: 'Resolvido', closed: 'Fechado' };
+        const colors = { open: '#ff9800', in_progress: '#3d6aff', waiting: '#9c27b0', resolved: '#4caf50', closed: '#999' };
         return (
           <span style={{ background: colors[value], color: '#fff', padding: '0.25rem 0.75rem', borderRadius: '12px', fontSize: '0.85rem' }}>
             {statusMap[value] || value}
@@ -118,8 +125,8 @@ export default function MyTicketsPage() {
       }
     },
     {
-      header: 'Prioridade',
-      accessor: 'priority',
+      label: 'Prioridade',
+      key: 'priority',
       render: (value) => {
         const priorityMap = { low: 'Baixa', medium: 'Média', high: 'Elevada', urgent: 'Urgente' };
         const colors = { low: '#4caf50', medium: '#3d6aff', high: '#ff9800', urgent: '#f44336' };
@@ -131,8 +138,8 @@ export default function MyTicketsPage() {
       }
     },
     {
-      header: 'Data',
-      accessor: 'created_at',
+      label: 'Data',
+      key: 'created_at',
       render: (value) => new Date(value).toLocaleDateString('pt-PT')
     }
   ];
@@ -143,7 +150,7 @@ export default function MyTicketsPage() {
         <div>
           <h1>Os Meus Tickets</h1>
           <p style={{ color: '#999', margin: '0.5rem 0 0 0' }}>
-            Total: {total} {total === 1 ? 'ticket' : 'tickets'}
+            Tickets atribuídos a mim — Total: {total} {total === 1 ? 'ticket' : 'tickets'}
           </p>
         </div>
         <button className="btn btn-primary" onClick={() => setShowCreateModal(true)}>
@@ -183,16 +190,20 @@ export default function MyTicketsPage() {
 
       <Table
         columns={columns}
-        data={tickets}
+        rows={tickets}
         loading={loading}
         onRowClick={(ticket) => navigate(`/tickets/${ticket.id}`)}
         actions={[
           {
-            icon: '👁️',
+            id: 'view',
+            icon: <VisibilityIcon sx={{ fontSize: '1.1rem' }} />,
+            label: 'Ver ticket',
             onClick: (ticket) => navigate(`/tickets/${ticket.id}`)
           },
           {
-            icon: '🗑️',
+            id: 'delete',
+            icon: <DeleteIcon sx={{ fontSize: '1.1rem' }} />,
+            label: 'Eliminar',
             onClick: (ticket) => setDeleteModal({ open: true, id: ticket.id })
           }
         ]}

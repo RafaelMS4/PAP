@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import SearchIcon from '@mui/icons-material/Search';
 import '../styles/filters.css';
 
 export const FilterBar = memo(({ 
@@ -17,7 +18,7 @@ export const FilterBar = memo(({
           className="search-input"
           onChange={(e) => onSearch?.(e.target.value)}
         />
-        <span className="search-icon">🔍</span>
+        <span className="search-icon"><SearchIcon sx={{ fontSize: '1.2rem' }} /></span>
       </div>
 
       <div className="filters-container">

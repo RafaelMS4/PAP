@@ -7,6 +7,11 @@ import Pagination from '../components/Pagination';
 import { StatusBadge, PriorityBadge } from '../components/Badges';
 import { Modal } from '../components/Modal';
 import FormModal from '../components/FormModal';
+import AssignmentIcon from '@mui/icons-material/Assignment';
+import AddIcon from '@mui/icons-material/Add';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
 import '../styles/list-page.css';
 
 export default function TicketsPage() {
@@ -116,19 +121,19 @@ export default function TicketsPage() {
   const actions = useMemo(() => [
     {
       id: 'view',
-      icon: '👁️',
+      icon: <VisibilityIcon sx={{ fontSize: '1.1rem' }} />,
       label: 'Ver',
       onClick: (row) => navigate(`/tickets/${row.id}`)
     },
     {
       id: 'edit',
-      icon: '✏️',
+      icon: <EditIcon sx={{ fontSize: '1.1rem' }} />,
       label: 'Editar',
       onClick: (row) => navigate(`/tickets/${row.id}/edit`)
     },
     {
       id: 'delete',
-      icon: '🗑️',
+      icon: <DeleteIcon sx={{ fontSize: '1.1rem' }} />,
       label: 'Deletar',
       onClick: (row) => {
         setSelectedTicket(row);
@@ -175,11 +180,11 @@ export default function TicketsPage() {
     <div className="list-page">
       <div className="page-header">
         <div>
-          <h1>📋 Tickets</h1>
+          <h1><AssignmentIcon sx={{ fontSize: '1.5rem', mr: 0.5, verticalAlign: 'middle' }} /> Tickets</h1>
           <p>Gerencia todos os tickets do sistema</p>
         </div>
         <button className="btn btn-primary" onClick={() => setShowCreateModal(true)}>
-          ➕ Novo Ticket
+          <AddIcon sx={{ fontSize: '1.1rem', mr: 0.3 }} /> Novo Ticket
         </button>
       </div>
 

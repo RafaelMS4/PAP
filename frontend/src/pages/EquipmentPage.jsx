@@ -6,6 +6,8 @@ import FilterBar from '../components/FilterBar';
 import Pagination from '../components/Pagination';
 import FormModal from '../components/FormModal';
 import { ConfirmModal } from '../components/Modal';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
 import '../styles/list-page.css';
 
 export default function EquipmentPage() {
@@ -191,13 +193,13 @@ export default function EquipmentPage() {
           {
             id: 'edit',
             label: 'Editar equipamento',
-            icon: '✏️',
+            icon: <EditIcon sx={{ fontSize: '1.1rem' }} />,
             onClick: (item) => setEditModal({ open: true, equipment: item })
           },
           {
             id: 'delete',
             label: 'Eliminar equipamento',
-            icon: '🗑️',
+            icon: <DeleteIcon sx={{ fontSize: '1.1rem' }} />,
             onClick: (item) => setDeleteModal({ open: true, id: item.id })
           }
         ]}
