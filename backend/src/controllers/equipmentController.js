@@ -219,6 +219,7 @@ export const updateEquipment = async (req, res) => {
   try {
     const { id } = req.params;
     const { name, type, model, location, status, assigned_to, assignedTo } = req.body;
+    const userId = req.userId;
 
     const equipment = await dbGet('SELECT * FROM equipment WHERE id = ?', [id]);
     if (!equipment) {
@@ -227,32 +228,78 @@ export const updateEquipment = async (req, res) => {
 
     const updates = [];
     const values = [];
+    const historyLogs = [];
 
-    if (name !== undefined) {
+    if (name !== undefined && name !== equipment.name) {
       updates.push('name = ?');
       values.push(name);
+      historyLogs.push({
+        field: 'name',
+        oldValue: equipment.name,
+        newValue: name
+      });
     }
-    if (type !== undefined) {
+    if (type !== undefined && type !== equipment.type) {
       updates.push('type = ?');
       values.push(type);
+      historyLogs.push({
+        field: 'type',
+        oldValue: equipment.type,
+        newValue: type
+      });
     }
-    if (model !== undefined) {
+    if (model !== undefined && model !== equipment.model) {
       updates.push('model = ?');
       values.push(model);
+      historyLogs.push({
+        field: 'model',
+        oldValue: equipment.model,
+        newValue: model
+      });
     }
-    if (location !== undefined) {
+    if (location !== undefined && location !== equipment.location) {
       updates.push('location = ?');
       values.push(location);
+      historyLogs.push({
+        field: 'location',
+        oldValue: equipment.location,
+        newValue: location
+      });
     }
-    if (status !== undefined) {
+    if (status !== undefined && status !== equipment.status) {
       updates.push('status = ?');
       values.push(status);
+      historyLogs.push({
+        field: 'status',
+        oldValue: equipment.status,
+        newValue: status
+      });
     }
     // Accept both camelCase and snake_case
     const assignedToValue = assignedTo !== undefined ? assignedTo : assigned_to;
-    if (assignedToValue !== undefined) {
+    if (assignedToValue !== undefined && assignedToValue !== equipment.assigned_to) {
       updates.push('assigned_to = ?');
       values.push(assignedToValue);
+      
+      // Get user names for history
+      let oldUserName = null;
+      let newUserName = null;
+      
+      if (equipment.assigned_to) {
+        const oldUser = await dbGet('SELECT name FROM users WHERE id = ?', [equipment.assigned_to]);
+        oldUserName = oldUser ? oldUser.name : 'Desconhecido';
+      }
+      
+      if (assignedToValue) {
+        const newUser = await dbGet('SELECT name FROM users WHERE id = ?', [assignedToValue]);
+        newUserName = newUser ? newUser.name : 'Desconhecido';
+      }
+      
+      historyLogs.push({
+        field: 'assigned_to',
+        oldValue: oldUserName,
+        newValue: newUserName
+      });
     }
 
     if (updates.length === 0) {
@@ -267,9 +314,18 @@ export const updateEquipment = async (req, res) => {
       values
     );
 
+    // Log history
+    for (const log of historyLogs) {
+      await dbRun(
+        'INSERT INTO equipment_history (equipment_id, user_id, action, field_changed, old_value, new_value) VALUES (?, ?, ?, ?, ?, ?)',
+        [id, userId, 'updated', log.field, log.oldValue, log.newValue]
+      );
+    }
+
     const updatedEquipment = await dbGet('SELECT * FROM equipment WHERE id = ?', [id]);
     res.json({ message: 'Equipment updated successfully', equipment: updatedEquipment });
   } catch (error) {
+    console.error('Update equipment error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 };
@@ -340,6 +396,30 @@ export const unassignEquipment = async (req, res) => {
     });
   } catch (error) {
     console.error('Unassign equipment error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+export const getEquipmentHistory = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const equipment = await dbGet('SELECT * FROM equipment WHERE id = ?', [id]);
+    if (!equipment) {
+      return res.status(404).json({ error: 'Equipment not found' });
+    }
+
+    const history = await dbAll(
+      `SELECT eh.*, u.username FROM equipment_history eh
+       LEFT JOIN users u ON eh.user_id = u.id
+       WHERE eh.equipment_id = ?
+       ORDER BY eh.created_at DESC`,
+      [id]
+    );
+
+    res.json({ history });
+  } catch (error) {
+    console.error('Get equipment history error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 };

@@ -1,5 +1,5 @@
 import express from 'express';
-import { creatEquipment, getEquipment, getEquipmentById, deleteEquipment, getUserEquipment, updateEquipment, getEquipmentByType, assignEquipmentToUser, unassignEquipment } from '../controllers/equipmentController.js';
+import { creatEquipment, getEquipment, getEquipmentById, deleteEquipment, getUserEquipment, updateEquipment, getEquipmentByType, assignEquipmentToUser, unassignEquipment, getEquipmentHistory } from '../controllers/equipmentController.js';
 import { verifyToken, isAdmin } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -307,5 +307,32 @@ router.put('/:equipmentId/assign', verifyToken, isAdmin, assignEquipmentToUser);
  *         description: Equipment not found
  */
 router.put('/:equipmentId/unassign', verifyToken, isAdmin, unassignEquipment);
+
+/**
+ * @swagger
+ * /equipment/{id}/history:
+ *   get:
+ *     summary: Get equipment history
+ *     description: Retrieves the history of changes for a specific equipment
+ *     tags:
+ *       - Equipment
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           description: Equipment ID
+ *     responses:
+ *       200:
+ *         description: Equipment history retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Equipment not found
+ */
+router.get('/:id/history', verifyToken, getEquipmentHistory);
 
 export default router;

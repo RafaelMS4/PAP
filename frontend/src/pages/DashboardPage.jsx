@@ -191,6 +191,12 @@ export default function DashboardPage() {
       color: '#9c27b0'
     },
     {
+      title: 'Horas Admin',
+      value: `${stats?.metrics?.total_admin_hours || 0}h`,
+      icon: <AccessTime sx={{ fontSize: '1.5rem' }} />,
+      color: '#3d6aff'
+    },
+    {
       title: 'Utilizadores',
       value: stats?.system?.total_users || 0,
       icon: <People sx={{ fontSize: '1.5rem' }} />,

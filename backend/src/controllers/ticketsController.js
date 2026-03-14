@@ -314,6 +314,14 @@ export const addComment = async (req, res) => {
       [id, userId, comment_type, message, is_internal ? 1 : 0]
     );
 
+    // If it's a solution, close the ticket
+    if (comment_type === 'solution') {
+      await dbRun(
+        'UPDATE tickets SET status = ?, resolved_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+        ['closed', id]
+      );
+    }
+
     // If task has time_spent, create a time log entry
     if (comment_type === 'task' && time_spent && parseInt(time_spent) > 0) {
       await dbRun(
@@ -363,7 +371,7 @@ export const getComments = async (req, res) => {
        FROM ticket_comments tc
        LEFT JOIN users u ON tc.user_id = u.id
        WHERE tc.ticket_id = ?
-       ORDER BY tc.created_at DESC`,
+       ORDER BY tc.created_at ASC`,
       [id]
     );
 

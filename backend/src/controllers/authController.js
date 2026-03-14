@@ -10,7 +10,26 @@ export const login = async (req, res) => {
       return res.status(400).json({ error: 'Username and password required' });
     }
 
-    const user = await dbGet('SELECT * FROM users WHERE username = ?', [username]);
+    let user;
+
+    // First try exact username match
+    user = await dbGet('SELECT * FROM users WHERE username = ?', [username]);
+
+    // If no exact username match, try email match (full email or prefix)
+    if (!user) {
+      // Check if input contains @ - if so, treat as full email
+      if (username.includes('@')) {
+        user = await dbGet('SELECT * FROM users WHERE email = ?', [username]);
+      } else {
+        // Treat as email prefix and try to match @helpdesk.pt emails
+        user = await dbGet('SELECT * FROM users WHERE email = ?', [`${username}@helpdesk.pt`]);
+        
+        // If still no match, try other common domains or just search by username again
+        if (!user) {
+          user = await dbGet('SELECT * FROM users WHERE username = ? OR email LIKE ?', [username, `${username}@%`]);
+        }
+      }
+    }
 
     if (!user) {
       return res.status(401).json({ error: 'Invalid credentials' });

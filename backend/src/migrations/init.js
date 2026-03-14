@@ -95,6 +95,40 @@ const createTables = async () => {
     `);
     console.log('✓ Ticket history table created');
 
+    // Create equipment_history table
+    await dbRun(`
+      CREATE TABLE IF NOT EXISTS equipment_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        equipment_id INTEGER NOT NULL,
+        user_id INTEGER NOT NULL,
+        action TEXT NOT NULL,
+        field_changed TEXT,
+        old_value TEXT,
+        new_value TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(equipment_id) REFERENCES equipment(id) ON DELETE CASCADE,
+        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+      )
+    `);
+    console.log('✓ Equipment history table created');
+
+    // Create user_history table
+    await dbRun(`
+      CREATE TABLE IF NOT EXISTS user_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        target_user_id INTEGER NOT NULL,
+        user_id INTEGER NOT NULL,
+        action TEXT NOT NULL,
+        field_changed TEXT,
+        old_value TEXT,
+        new_value TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(target_user_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+      )
+    `);
+    console.log('✓ User history table created');
+
     // Create ticket_time_logs table
     await dbRun(`
       CREATE TABLE IF NOT EXISTS ticket_time_logs (

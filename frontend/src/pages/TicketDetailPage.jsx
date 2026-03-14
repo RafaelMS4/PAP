@@ -75,15 +75,26 @@ export default function TicketDetailPage() {
   const handleAddComment = async (formData) => {
     try {
       setActionLoading(true);
+      const commentType = formData.comment_type || 'comment';
+      
       await api.post(`/tickets/${id}/comments`, {
         message: formData.message,
-        comment_type: 'comment'
+        comment_type: commentType
       });
+      
+      // If it's a conclusion, also close the ticket
+      if (commentType === 'solution') {
+        await api.put(`/tickets/${id}/status`, {
+          status: 'closed'
+        });
+      }
+      
       setShowCommentModal(false);
       fetchTicketDetails();
+      window.showNotification('success', 'Comentário adicionado com sucesso');
     } catch (error) {
       console.error('Erro ao adicionar comentário:', error);
-      alert('Erro ao adicionar comentário');
+      window.showNotification('error', 'Erro ao adicionar comentário');
     } finally {
       setActionLoading(false);
     }
@@ -99,9 +110,10 @@ export default function TicketDetailPage() {
       });
       setShowTaskModal(false);
       fetchTicketDetails();
+      window.showNotification('success', 'Tarefa adicionada com sucesso');
     } catch (error) {
       console.error('Erro ao adicionar tarefa:', error);
-      alert('Erro ao adicionar tarefa');
+      window.showNotification('error', 'Erro ao adicionar tarefa');
     } finally {
       setActionLoading(false);
     }
@@ -115,9 +127,10 @@ export default function TicketDetailPage() {
       });
       setShowStatusModal(false);
       fetchTicketDetails();
+      window.showNotification('success', 'Status atualizado com sucesso');
     } catch (error) {
       console.error('Erro ao atualizar status:', error);
-      alert('Erro ao atualizar status');
+      window.showNotification('error', 'Erro ao atualizar status');
     } finally {
       setActionLoading(false);
     }
@@ -130,9 +143,10 @@ export default function TicketDetailPage() {
         assigned_to: currentUser.id
       });
       fetchTicketDetails();
+      window.showNotification('success', 'Ticket atribuído com sucesso');
     } catch (error) {
       console.error('Erro ao atribuir ticket:', error);
-      alert('Erro ao atribuir ticket');
+      window.showNotification('error', 'Erro ao atribuir ticket');
     } finally {
       setActionLoading(false);
     }
@@ -146,9 +160,10 @@ export default function TicketDetailPage() {
       });
       setShowAssignModal(false);
       fetchTicketDetails();
+      window.showNotification('success', 'Ticket atribuído com sucesso');
     } catch (error) {
       console.error('Erro ao atribuir ticket:', error);
-      alert('Erro ao atribuir ticket');
+      window.showNotification('error', 'Erro ao atribuir ticket');
     } finally {
       setActionLoading(false);
     }
@@ -163,9 +178,10 @@ export default function TicketDetailPage() {
       });
       setShowEquipmentModal(false);
       fetchTicketDetails();
+      window.showNotification('success', 'Equipamento associado com sucesso');
     } catch (error) {
       console.error('Erro ao associar equipamento:', error);
-      alert(error.response?.data?.error || 'Erro ao associar equipamento');
+      window.showNotification('error', error.response?.data?.error || 'Erro ao associar equipamento');
     } finally {
       setActionLoading(false);
     }
@@ -176,9 +192,10 @@ export default function TicketDetailPage() {
     try {
       await api.delete(`/tickets/${id}/equipment/${associationId}`);
       fetchTicketDetails();
+      window.showNotification('success', 'Equipamento removido com sucesso');
     } catch (error) {
       console.error('Erro ao remover equipamento:', error);
-      alert('Erro ao remover equipamento');
+      window.showNotification('error', 'Erro ao remover equipamento');
     }
   };
 
@@ -302,26 +319,31 @@ export default function TicketDetailPage() {
             </div>
             <div className="comments-list">
               {regularComments.length > 0 ? (
-                regularComments.map(comment => (
-                  <div key={comment.id} className="comment-item">
-                    <div className="comment-header">
-                      <div className="comment-author-info">
-                        <strong style={{ color: '#fff' }}>{comment.username || comment.name || 'Anónimo'}</strong>
-                        <span className="comment-date">{new Date(comment.created_at).toLocaleString('pt-PT')}</span>
+                regularComments.map(comment => {
+                  const isMyMessage = comment.user_id === currentUser.id;
+                  return (
+                    <div key={comment.id} className={`comment-item ${isMyMessage ? 'comment-mine' : 'comment-other'}`}>
+                      <div className="comment-header">
+                        <div className="comment-author-info">
+                          <strong style={{ color: isMyMessage ? '#3d6aff' : '#fff' }}>
+                            {isMyMessage ? 'Eu' : (comment.username || comment.name || 'Anónimo')}
+                          </strong>
+                          <span className="comment-date">{new Date(comment.created_at).toLocaleString('pt-PT')}</span>
+                        </div>
+                        {(comment.user_id === currentUser.id || isAdmin) && (
+                          <button 
+                            className="btn-icon-small" 
+                            onClick={() => handleDeleteComment(comment.id)}
+                            title="Eliminar"
+                          >
+                            <DeleteIcon sx={{ fontSize: '1rem' }} />
+                          </button>
+                        )}
                       </div>
-                      {(comment.user_id === currentUser.id || isAdmin) && (
-                        <button 
-                          className="btn-icon-small" 
-                          onClick={() => handleDeleteComment(comment.id)}
-                          title="Eliminar"
-                        >
-                          <DeleteIcon sx={{ fontSize: '1rem' }} />
-                        </button>
-                      )}
+                      <p className="comment-text">{comment.message}</p>
                     </div>
-                    <p className="comment-text">{comment.message}</p>
-                  </div>
-                ))
+                  );
+                })
               ) : (
                 <p style={{ color: '#666', margin: 0, textAlign: 'center', padding: '1rem' }}>Sem mensagens</p>
               )}
@@ -551,6 +573,17 @@ export default function TicketDetailPage() {
         isOpen={showCommentModal}
         title="Adicionar Mensagem"
         fields={[
+          {
+            name: 'comment_type',
+            label: 'Tipo de Mensagem',
+            type: 'select',
+            required: true,
+            options: [
+              { value: 'comment', label: 'Mensagem Normal' },
+              { value: 'solution', label: 'Conclusão (Fecha o Ticket)' }
+            ],
+            defaultValue: 'comment'
+          },
           {
             name: 'message',
             label: 'Mensagem',

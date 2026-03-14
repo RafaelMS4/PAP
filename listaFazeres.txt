@@ -1,7 +1,8 @@
-Criei um novo utilizador e na aba tickets do seu perfil aparece tickets de outro user
-Na interface do ticket mostrar quem criou
-Tickets nao atribuidos aparecem no "Fila de Tickets", resolver isso e fazer todo o processo de atribuir ticket ou seja o admin escolhe ficar com aquele e depois aparece nos meus tickets do admin e na interface do ticket o admin atribuido
-Atribuir equipamentos ao ticket e mostrar na interface
-Todos os users e equipamentos na interface do ticket serem clicaveis e levar ao perfil da cena
-arranjar as mensagens nos tickets 
-colocar tarefas no ticket para contar tempo
+Adicionar mensagem que abra duas opções ou mensagem normal ou conclusão que fecha o ticket
+Coloquei 10min na tarefa e aparece 10H no grafico
+Mudar login para usar email mas sem o @helpdesk.pt, so o david.moura por exemplo
+Sistema de notificações subtis em tudo, erros criar utilizador etc, já agora erros ser mais especifico no erro por exemplo email já atribuido etc
+Nas mensagens mudar a UI, mais facil de saber a minha mensagem e a dos outros, e a mais recente em baixo
+Adicionar historico na pagina de cada equipamento e utilizador, por exemplo nome alterado de para tal, atribuido x computador e no computador, atribuido a x pessoa e tudo isso
+Arranjar outro espaço para as hora na pagina do admin
+Implementar todas as funções para todas as apis existentes

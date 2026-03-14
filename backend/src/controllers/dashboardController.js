@@ -35,14 +35,21 @@ export const getDashboardStats = async (req, res) => {
 
       // Most active admins (by time logs) - CORRIGIDO
       const topAdmins = await dbAll(
-        `SELECT users.id, users.username, SUM(ticket_time_logs.time_spent) as total_hours
+        `SELECT users.id, users.username, ROUND(SUM(ticket_time_logs.time_spent) / 60.0, 2) as total_hours
          FROM users
          LEFT JOIN ticket_time_logs ON ticket_time_logs.user_id = users.id
          WHERE users.role = 'admin' AND ticket_time_logs.log_date >= date('now', '-30 days')
          GROUP BY users.id
-         HAVING total_hours > 0
-         ORDER BY total_hours DESC
+         HAVING SUM(ticket_time_logs.time_spent) > 0
+         ORDER BY SUM(ticket_time_logs.time_spent) DESC
          LIMIT 5`
+      );
+
+      // Total admin hours this month
+      const totalAdminHours = await dbGet(
+        `SELECT ROUND(SUM(ticket_time_logs.time_spent) / 60.0, 2) as total_hours
+         FROM ticket_time_logs
+         WHERE ticket_time_logs.log_date >= date('now', '-30 days')`
       );
 
       res.json({
@@ -61,7 +68,8 @@ export const getDashboardStats = async (req, res) => {
             total_equipment: totalEquipment.count || 0
           },
           metrics: {
-            avg_resolution_hours: avgResolutionTime?.hours ? parseFloat(avgResolutionTime.hours).toFixed(2) : '0.00'
+            avg_resolution_hours: avgResolutionTime?.hours ? parseFloat(avgResolutionTime.hours).toFixed(2) : '0.00',
+            total_admin_hours: totalAdminHours?.total_hours || 0
           },
           top_admins: topAdmins || []
         }

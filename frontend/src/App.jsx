@@ -13,6 +13,7 @@ import EquipmentPage from './pages/EquipmentPage'
 import EquipmentDetailPage from './pages/EquipmentDetailPage'
 import ProfilePage from './pages/ProfilePage'
 import Navbar from './components/Navbar.jsx'
+import NotificationContainer from './components/NotificationContainer.jsx'
 import './styles/global.css'
 
 function PrivateRoute() {
@@ -57,6 +58,7 @@ function HomeRedirect() {
 export default function App() {
   return (
     <BrowserRouter>
+      <NotificationContainer />
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route element={<PrivateRoute />}>

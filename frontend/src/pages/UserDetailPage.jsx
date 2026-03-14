@@ -31,6 +31,7 @@ export default function UserDetailPage() {
   const [deleteModal, setDeleteModal] = useState(false);
   const [assignEquipmentModal, setAssignEquipmentModal] = useState(false);
   const [formLoading, setFormLoading] = useState(false);
+  const [history, setHistory] = useState([]);
   const [stats, setStats] = useState({
     totalTickets: 0,
     openTickets: 0,
@@ -76,6 +77,15 @@ export default function UserDetailPage() {
         closedTickets: ticketList.filter(t => ['resolved', 'closed'].includes(t.status)).length,
         assignedEquipment: (equipmentRes.data.equipment || []).length
       });
+
+      // Fetch user history
+      try {
+        const historyResponse = await api.get(`/users/${id}/history`);
+        setHistory(historyResponse.data.history || []);
+      } catch (error) {
+        console.error('Erro ao buscar histórico do utilizador:', error);
+        setHistory([]);
+      }
     } catch (error) {
       console.error('Erro ao buscar dados do utilizador:', error);
       if (error.response?.status === 404) {
@@ -363,6 +373,12 @@ export default function UserDetailPage() {
         >
           Equipamento ({equipment.length})
         </button>
+        <button 
+          className={`tab ${activeTab === 'history' ? 'active' : ''}`}
+          onClick={() => setActiveTab('history')}
+        >
+          Histórico
+        </button>
       </div>
 
       {/* Tab Content */}
@@ -460,6 +476,39 @@ export default function UserDetailPage() {
                 ]}
               />
             )}
+          </Card>
+        )}
+
+        {activeTab === 'history' && (
+          <Card>
+            <h3>Histórico de Alterações</h3>
+            <div className="history-list">
+              {history.length > 0 ? (
+                history.map(item => (
+                  <div key={item.id} className="history-item">
+                    <div className="history-action">
+                      <strong>{item.username || 'Sistema'}</strong> alterou <strong>{item.field_changed}</strong>
+                      {item.old_value && item.new_value && (
+                        <span> de <em>"{item.old_value}"</em> para <em>"{item.new_value}"</em></span>
+                      )}
+                      {!item.old_value && item.new_value && (
+                        <span> para <em>"{item.new_value}"</em></span>
+                      )}
+                      {item.old_value && !item.new_value && (
+                        <span> removendo <em>"{item.old_value}"</em></span>
+                      )}
+                    </div>
+                    <div className="history-meta">
+                      {new Date(item.created_at).toLocaleString('pt-PT')}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p style={{ textAlign: 'center', color: '#666', padding: '2rem' }}>
+                  Nenhum histórico disponível
+                </p>
+              )}
+            </div>
           </Card>
         )}
       </div>

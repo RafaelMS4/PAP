@@ -1,5 +1,5 @@
 import express from 'express';
-import { getUsers, createUser, deleteUser, updateUser, getUserById, getAdmins } from '../controllers/usersController.js';
+import { getUsers, createUser, deleteUser, updateUser, getUserById, getAdmins, getUserHistory } from '../controllers/usersController.js';
 import { verifyToken, isAdmin } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -239,5 +239,32 @@ router.get('/:id', verifyToken, getUserById);
  *         description: Forbidden - Admin access required
  */
 router.get('/list/admins', verifyToken, isAdmin, getAdmins);
+
+/**
+ * @swagger
+ * /users/{id}/history:
+ *   get:
+ *     summary: Get user history
+ *     description: Retrieves the history of changes for a specific user
+ *     tags:
+ *       - Users
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           description: User ID
+ *     responses:
+ *       200:
+ *         description: User history retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: User not found
+ */
+router.get('/:id/history', verifyToken, getUserHistory);
 
 export default router;
