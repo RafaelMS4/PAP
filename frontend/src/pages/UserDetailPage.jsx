@@ -32,6 +32,8 @@ export default function UserDetailPage() {
   const [assignEquipmentModal, setAssignEquipmentModal] = useState(false);
   const [formLoading, setFormLoading] = useState(false);
   const [history, setHistory] = useState([]);
+  const [unassignModal, setUnassignModal] = useState(false);
+  const [selectedEquipmentToUnassign, setSelectedEquipmentToUnassign] = useState(null);
   const [stats, setStats] = useState({
     totalTickets: 0,
     openTickets: 0,
@@ -102,7 +104,7 @@ export default function UserDetailPage() {
       const normalizedEmail = buildHelpdeskEmail(formData.email);
 
       if (!normalizedEmail) {
-        alert(`Email inválido. Usa apenas @${HELPDESK_EMAIL_DOMAIN}`);
+        window.showNotification('warning', `Email inválido. Usa apenas @${HELPDESK_EMAIL_DOMAIN}`);
         return;
       }
 
@@ -115,7 +117,7 @@ export default function UserDetailPage() {
       fetchUserData();
     } catch (error) {
       console.error('Erro ao atualizar utilizador:', error);
-      alert('Erro ao atualizar utilizador');
+      window.showNotification('error', 'Erro ao atualizar utilizador');
     } finally {
       setFormLoading(false);
     }
@@ -128,7 +130,7 @@ export default function UserDetailPage() {
       navigate('/users');
     } catch (error) {
       console.error('Erro ao eliminar utilizador:', error);
-      alert('Erro ao eliminar utilizador');
+      window.showNotification('error', 'Erro ao eliminar utilizador');
       setFormLoading(false);
     }
   };
@@ -150,10 +152,13 @@ export default function UserDetailPage() {
         assignedTo: null,
         status: 'available'
       });
+      setSelectedEquipmentToUnassign(null);
+      setUnassignModal(false);
       fetchUserData();
+      window.showNotification('success', 'Equipamento desatribuído com sucesso');
     } catch (error) {
       console.error('Erro ao desatribuir equipamento:', error);
-      alert('Erro ao desatribuir equipamento');
+      window.showNotification('error', 'Erro ao desatribuir equipamento');
     }
   };
 
@@ -468,9 +473,8 @@ export default function UserDetailPage() {
                     label: 'Desatribuir equipamento',
                     icon: <CloseIcon sx={{ fontSize: '1.1rem' }} />,
                     onClick: (item) => {
-                      if (confirm(`Desatribuir "${item.name}" deste utilizador?`)) {
-                        handleUnassignEquipment(item.id);
-                      }
+                      setSelectedEquipmentToUnassign(item);
+                      setUnassignModal(true);
                     }
                   }
                 ]}
@@ -578,9 +582,10 @@ export default function UserDetailPage() {
                       setAssignEquipmentModal(false);
                       setSearchQuery('');
                       fetchUserData();
+                      window.showNotification('success', 'Equipamento atribuído com sucesso');
                     } catch (error) {
                       console.error('Erro ao atribuir equipamento:', error);
-                      alert('Erro ao atribuir equipamento');
+                      window.showNotification('error', 'Erro ao atribuir equipamento');
                     } finally {
                       setFormLoading(false);
                     }
@@ -602,6 +607,19 @@ export default function UserDetailPage() {
           </div>
         </div>
       </Modal>
+
+      <ConfirmModal
+        isOpen={unassignModal}
+        title="Desatribuir Equipamento"
+        message={`Tens a certeza que queres desatribuir o equipamento "${selectedEquipmentToUnassign?.name}" deste utilizador?`}
+        onConfirm={() => {
+          if (selectedEquipmentToUnassign) {
+            handleUnassignEquipment(selectedEquipmentToUnassign.id);
+          }
+        }}
+        onCancel={() => setUnassignModal(false)}
+        isDangerous
+      />
 
       <ConfirmModal
         isOpen={deleteModal}

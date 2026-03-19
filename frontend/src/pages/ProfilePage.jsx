@@ -132,23 +132,14 @@ export default function ProfilePage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="stats-grid">
+      <div className={`stats-grid stats-grid-profile`}>
         <div className="stat-card">
           <div className="stat-icon" style={{ background: '#3d6aff' }}>
             <PersonIcon style={{ fontSize: '28px', color: '#fff' }} />
           </div>
           <div>
             <div className="stat-value" style={{ fontSize: '1.3rem' }}>{user.name}</div>
-            <div className="stat-label">Nome</div>
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon" style={{ background: '#9c27b0' }}>
-            <EmailIcon style={{ fontSize: '28px', color: '#fff' }} />
-          </div>
-          <div>
-            <div className="stat-value" style={{ fontSize: '1.1rem' }}>{emailUsername}</div>
-            <div className="stat-label">Email</div>
+            <div className="stat-label" style={{ fontSize: '1.1rem' }}>{emailUsername}</div>
           </div>
         </div>
         <div className="stat-card">

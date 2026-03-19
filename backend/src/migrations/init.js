@@ -9,12 +9,10 @@ const createTables = async () => {
     await dbRun(`
       CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
         username TEXT UNIQUE NOT NULL,
         password TEXT NOT NULL,
         email TEXT UNIQUE NOT NULL,
         role TEXT DEFAULT 'user' CHECK(role IN ('admin', 'user')),
-        deleted_at DATETIME,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
@@ -27,14 +25,12 @@ const createTables = async () => {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
         type TEXT NOT NULL,
-        model TEXT,
-        location TEXT NOT NULL,
-        assigned_to INTEGER,
-        status TEXT DEFAULT 'available' CHECK(status IN ('available', 'in_use', 'maintenance', 'retired')),
-        deleted_at DATETIME,
+        serialNumber TEXT NOT NULL UNIQUE,
+        assignedTo INTEGER,
+        maintenance TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY(assigned_to) REFERENCES users(id) ON DELETE SET NULL
+        FOREIGN KEY(assignedTo) REFERENCES users(id) ON DELETE SET NULL
       )
     `);
     console.log('✓ Equipment table created');
@@ -192,8 +188,8 @@ const createTables = async () => {
     if (!adminExists) {
       const hashedPassword = await bcrypt.hash('admin', 10);
       await dbRun(
-        'INSERT INTO users (name, username, password, email, role) VALUES (?, ?, ?, ?, ?)',
-        ['Admin', 'admin', hashedPassword, 'admin@helpdesk.local', 'admin']
+        'INSERT INTO users (username, password, email, role) VALUES (?, ?, ?, ?)',
+        ['admin', hashedPassword, 'admin@helpdesk.local', 'admin']
       );
       console.log('✓ Admin user created (username: admin, password: admin)');
     } else {

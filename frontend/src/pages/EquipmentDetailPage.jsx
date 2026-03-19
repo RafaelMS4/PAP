@@ -30,6 +30,7 @@ export default function EquipmentDetailPage() {
   const [assignUserModal, setAssignUserModal] = useState(false);
   const [formLoading, setFormLoading] = useState(false);
   const [history, setHistory] = useState([]);
+  const [unassignModal, setUnassignModal] = useState(false);
 
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const isAdmin = user.role === 'admin';
@@ -109,9 +110,10 @@ export default function EquipmentDetailPage() {
       });
       setEditModal(false);
       fetchEquipmentData();
+      window.showNotification('success', 'Equipamento atualizado com sucesso');
     } catch (error) {
       console.error('Erro ao atualizar equipamento:', error);
-      alert('Erro ao atualizar equipamento');
+      window.showNotification('error', 'Erro ao atualizar equipamento');
     } finally {
       setFormLoading(false);
     }
@@ -121,26 +123,26 @@ export default function EquipmentDetailPage() {
     try {
       setFormLoading(true);
       await api.delete(`/equipment/deleteEquipment/${id}`);
+      window.showNotification('success', 'Equipamento eliminado com sucesso');
       navigate('/equipment');
     } catch (error) {
       console.error('Erro ao eliminar equipamento:', error);
-      alert('Erro ao eliminar equipamento');
+      window.showNotification('error', 'Erro ao eliminar equipamento');
       setFormLoading(false);
     }
   };
 
   const handleUnassignUser = async () => {
-    if (!confirm('Desatribuir este equipamento do utilizador?')) return;
-    
     try {
       await api.put(`/equipment/updateEquipment/${id}`, {
         assignedTo: null,
         status: 'available'
       });
       fetchEquipmentData();
+      window.showNotification('success', 'Equipamento desatribuído com sucesso');
     } catch (error) {
       console.error('Erro ao desatribuir equipamento:', error);
-      alert('Erro ao desatribuir equipamento');
+      window.showNotification('error', 'Erro ao desatribuir equipamento');
     }
   };
 
@@ -151,7 +153,7 @@ export default function EquipmentDetailPage() {
       });
       setAvailableUsers(response.data.users || []);
     } catch (error) {
-      console.error('Erro ao buscar utilizadores disponíveis:', error);
+      console.error('Erro ao buscar funcionários disponíveis:', error);
     }
   };
 
@@ -164,9 +166,10 @@ export default function EquipmentDetailPage() {
       setAssignUserModal(false);
       setSearchQuery('');
       fetchEquipmentData();
+      window.showNotification('success', 'Utilizador atribuído com sucesso');
     } catch (error) {
       console.error('Erro ao atribuir utilizador:', error);
-      alert('Erro ao atribuir utilizador');
+      window.showNotification('error', 'Erro ao atribuir utilizador');
     }
   };
 
@@ -343,7 +346,7 @@ export default function EquipmentDetailPage() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
               <h3>Utilizador Atribuído</h3>
               {assignedUser ? (
-                <button className="btn btn-danger" onClick={handleUnassignUser}>
+                <button className="btn btn-danger" onClick={() => setUnassignModal(true)}>
                   Desatribuir
                 </button>
               ) : (
@@ -474,6 +477,18 @@ export default function EquipmentDetailPage() {
         loading={formLoading}
       />
 
+      <ConfirmModal
+        isOpen={unassignModal}
+        onClose={() => setUnassignModal(false)}
+        onConfirm={() => {
+          handleUnassignUser();
+          setUnassignModal(false);
+        }}
+        title="Desatribuir Equipamento"
+        message="Tem a certeza que deseja desatribuir este equipamento do utilizador?"
+        isDangerous
+      />
+
       {/* Assign User Modal */}
       <Modal
         isOpen={assignUserModal}
@@ -494,7 +509,7 @@ export default function EquipmentDetailPage() {
           <div className="equipment-list">
             {filteredUsers.length === 0 ? (
               <p style={{ textAlign: 'center', color: '#999', padding: '2rem' }}>
-                {searchQuery ? 'Nenhum utilizador encontrado' : 'A carregar utilizadores...'}
+                {searchQuery ? 'Nenhum funcionário encontrado' : 'A carregar funcionários...'}
               </p>
             ) : (
               filteredUsers.map((user) => (

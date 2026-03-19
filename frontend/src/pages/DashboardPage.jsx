@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
-import { StatusPieChart, PriorityBarChart, TicketsTrendChart, AdminPerformanceChart } from '../components/Charts';
+import { StatusPieChart, PriorityBarChart, TicketsTrendChart } from '../components/Charts';
 import '../styles/dashboard.css';
 import { 
   Assignment, 
@@ -14,8 +14,7 @@ import {
   Computer,
   AutoAwesome,
   RefreshOutlined,
-  AccessTime,
-  EmojiEvents
+  AccessTime
 } from '@mui/icons-material';
 
 // Componente otimizado para StatCard
@@ -29,32 +28,6 @@ const StatCard = memo(({ title, value, icon, color, subtitle }) => (
       <p className="stat-value">{value}</p>
       {subtitle && <p className="stat-subtitle">{subtitle}</p>}
     </div>
-  </div>
-));
-
-// Componente otimizado para AdminTable
-const AdminTable = memo(({ admins }) => (
-  <div className="admin-table-wrapper">
-    <table className="admin-table">
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>Admin</th>
-          <th className="text-right">Horas</th>
-        </tr>
-      </thead>
-      <tbody>
-        {admins.map((admin, index) => (
-          <tr key={admin.id}>
-            <td><span className="rank-badge" style={{ 
-              backgroundColor: index === 0 ? '#ffd700' : index === 1 ? '#c0c0c0' : index === 2 ? '#cd7f32' : '#3d6aff' 
-            }}>{index + 1}</span></td>
-            <td className="admin-name">{admin.username}</td>
-            <td className="text-right admin-hours">{(admin.total_hours / 60).toFixed(1)}h</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
   </div>
 ));
 
@@ -191,13 +164,7 @@ export default function DashboardPage() {
       color: '#9c27b0'
     },
     {
-      title: 'Horas Admin',
-      value: `${stats?.metrics?.total_admin_hours || 0}h`,
-      icon: <AccessTime sx={{ fontSize: '1.5rem' }} />,
-      color: '#3d6aff'
-    },
-    {
-      title: 'Utilizadores',
+      title: 'Funcionários',
       value: stats?.system?.total_users || 0,
       icon: <People sx={{ fontSize: '1.5rem' }} />,
       color: '#00bcd4'
@@ -281,9 +248,6 @@ export default function DashboardPage() {
       {/* Charts Grid */}
       <div className="charts-grid">
         <StatusPieChart data={stats.tickets} />
-        {stats.top_admins && stats.top_admins.length > 0 && (
-          <AdminPerformanceChart admins={stats.top_admins} />
-        )}
         <TicketsTrendChart data={trendData} />
       </div>
 
@@ -313,17 +277,6 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
-
-      {/* Top Admins Table */}
-      {stats.top_admins && stats.top_admins.length > 0 && (
-        <div className="top-admins-card">
-          <div className="card-header">
-            <h3><EmojiEvents sx={{ fontSize: '1.5rem', mr: 1 }} />Top 5 Admins Mais Ativos</h3>
-            <p className="card-subtitle">Últimos 30 dias</p>
-          </div>
-          <AdminTable admins={stats.top_admins} />
-        </div>
-      )}
     </div>
   );
 }

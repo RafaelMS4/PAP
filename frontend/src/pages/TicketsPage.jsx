@@ -22,6 +22,8 @@ export default function TicketsPage() {
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState({ status: '', priority: '' });
   const [search, setSearch] = useState('');
+  const [sortBy, setSortBy] = useState('created_at');
+  const [sortDir, setSortDir] = useState('desc');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState(null);
@@ -35,18 +37,19 @@ export default function TicketsPage() {
       const params = {
         limit: pageSize,
         offset: (page - 1) * pageSize,
+        title: search || undefined,
         ...filters
       };
       
       const response = await api.get('/tickets', { params });
       setTickets(response.data.tickets || []);
-      setTotal(response.data.pagination?.total || 0);
+      setTotal(response.data.pagination?.total ?? response.data.total ?? 0);
     } catch (error) {
       console.error('Erro ao buscar tickets:', error);
     } finally {
       setLoading(false);
     }
-  }, [page, filters]);
+  }, [page, filters, search]);
 
   useEffect(() => {
     fetchTickets();
@@ -60,8 +63,21 @@ export default function TicketsPage() {
   const handleSearch = (value) => {
     setPage(1);
     setSearch(value);
-    setFilters(prev => ({ ...prev, search: value }));
   };
+
+  const toggleSort = useCallback((column) => {
+    if (sortBy === column) {
+      setSortDir((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortBy(column);
+      setSortDir('asc');
+    }
+  }, [sortBy]);
+
+  const getSortIcon = useCallback((column) => {
+    if (sortBy !== column) return null;
+    return sortDir === 'asc' ? ' ▲' : ' ▼';
+  }, [sortBy, sortDir]);
 
   const handleCreateTicket = async (formData) => {
     try {
@@ -69,9 +85,10 @@ export default function TicketsPage() {
       await api.post('/tickets', formData);
       setShowCreateModal(false);
       fetchTickets();
+      window.showNotification('success', 'Ticket criado com sucesso!');
     } catch (error) {
       console.error('Erro ao criar ticket:', error);
-      alert('Erro ao criar ticket');
+      window.showNotification('error', 'Erro ao criar ticket. Tente novamente.');
     } finally {
       setCreateLoading(false);
     }
@@ -83,9 +100,10 @@ export default function TicketsPage() {
       await api.delete(`/tickets/${selectedTicket.id}`);
       setShowDeleteModal(false);
       fetchTickets();
+      window.showNotification('success', 'Ticket deletado com sucesso!');
     } catch (error) {
       console.error('Erro ao deletar ticket:', error);
-      alert('Erro ao deletar ticket');
+      window.showNotification('error', 'Erro ao deletar ticket. Tente novamente.');
     } finally {
       setCreateLoading(false);
     }
@@ -94,7 +112,11 @@ export default function TicketsPage() {
   const columns = useMemo(() => [
     {
       key: 'id',
-      label: 'ID',
+      label: (
+        <span style={{ cursor: 'pointer' }} onClick={() => toggleSort('id')}>
+          ID{getSortIcon('id')}
+        </span>
+      ),
       render: (value) => `#${value.toString().padStart(4, '0')}`
     },
     {
@@ -116,7 +138,7 @@ export default function TicketsPage() {
       label: 'Criado',
       render: (value) => new Date(value).toLocaleDateString('pt-PT')
     }
-  ], []);
+  ], [getSortIcon, toggleSort]);
 
   const actions = useMemo(() => [
     {
@@ -141,6 +163,26 @@ export default function TicketsPage() {
       }
     }
   ], [navigate]);
+
+  const sortedTickets = useMemo(() => {
+    if (!sortBy) return tickets;
+
+    const sorted = [...tickets].sort((a, b) => {
+      const aVal = a[sortBy];
+      const bVal = b[sortBy];
+
+      if (aVal == null) return 1;
+      if (bVal == null) return -1;
+
+      if (typeof aVal === 'number' && typeof bVal === 'number') {
+        return aVal - bVal;
+      }
+
+      return String(aVal).localeCompare(String(bVal), 'pt', { numeric: true });
+    });
+
+    return sortDir === 'asc' ? sorted : sorted.reverse();
+  }, [tickets, sortBy, sortDir]);
 
   const createFields = [
     {
@@ -180,7 +222,7 @@ export default function TicketsPage() {
     <div className="list-page">
       <div className="page-header">
         <div>
-          <h1><AssignmentIcon sx={{ fontSize: '1.5rem', mr: 0.5, verticalAlign: 'middle' }} /> Tickets</h1>
+          <h1>Tickets</h1>
           <p>Gerencia todos os tickets do sistema</p>
         </div>
         <button className="btn btn-primary" onClick={() => setShowCreateModal(true)}>
@@ -195,6 +237,7 @@ export default function TicketsPage() {
             label: 'Status',
             value: filters.status,
             options: [
+              { value: '', label: 'Todos' },
               { value: 'open', label: 'Aberto' },
               { value: 'in_progress', label: 'Em Progresso' },
               { value: 'closed', label: 'Fechado' }
@@ -205,6 +248,7 @@ export default function TicketsPage() {
             label: 'Prioridade',
             value: filters.priority,
             options: [
+              { value: '', label: 'Todas' },
               { value: 'low', label: 'Baixa' },
               { value: 'medium', label: 'Média' },
               { value: 'high', label: 'Alta' },
@@ -222,7 +266,7 @@ export default function TicketsPage() {
         <p className="total-info">Total: {total} tickets</p>
         <Table
           columns={columns}
-          rows={tickets}
+          rows={sortedTickets}
           loading={loading}
           actions={actions}
           onRowClick={(row) => navigate(`/tickets/${row.id}`)}

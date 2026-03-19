@@ -29,17 +29,18 @@ export default function Navbar() {
 
   const ticketMenuItems = user.role === 'admin' 
     ? [
-        { text: 'Meus Tickets', icon: <Assignment />, path: '/my-tickets' },
-        { text: 'Tickets', icon: <Assignment />, path: '/tickets' }
+        { text: 'Tickets', icon: <Assignment />, path: '/tickets' },
+        { text: 'Meus Tickets', icon: <Assignment />, path: '/my-tickets' }
       ]
     : [];
 
   const adminTicketItems = [
-    { text: 'Fila de Tickets', icon: <Assignment />, path: '/admin/queue' }
+    { text: 'Fila de Tickets', icon: <Assignment />, path: '/admin/queue' },
+    { text: 'Tickets Fechados', icon: <Assignment />, path: '/admin/closed-tickets' }
   ];
 
   const adminMenuItems = [
-    { text: 'Utilizadores', icon: <People />, path: '/users' },
+    { text: 'Funcionários', icon: <People />, path: '/users' },
     { text: 'Equipamentos', icon: <Computer />, path: '/equipment' }
   ];
 

@@ -92,6 +92,20 @@
   margin-bottom: 2rem;
 }
 
+/* Profile: center stat cards and avoid empty grid gaps */
+.stats-grid-profile {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  justify-content: center;
+  margin-bottom: 2rem;
+}
+
+.stats-grid-profile .stat-card {
+  flex: 1 1 260px;
+  max-width: 380px;
+}
+
 .detail-page .stat-card {
   border: none;
   border-left: 4px solid var(--primary);

@@ -63,9 +63,10 @@ export default function EquipmentPage() {
       setShowCreateModal(false);
       setPage(1);
       fetchEquipment();
+      window.showNotification('success', 'Equipamento criado com sucesso!');
     } catch (error) {
       console.error('Erro ao criar equipamento:', error);
-      alert('Erro ao criar equipamento');
+      window.showNotification('error', 'Erro ao criar equipamento. Tente novamente.');
     } finally {
       setFormLoading(false);
     }
@@ -83,9 +84,10 @@ export default function EquipmentPage() {
       });
       setEditModal({ open: false, equipment: null });
       fetchEquipment();
+      window.showNotification('success', 'Equipamento atualizado com sucesso!');
     } catch (error) {
       console.error('Erro ao atualizar equipamento:', error);
-      alert('Erro ao atualizar equipamento');
+      window.showNotification('error', 'Erro ao atualizar equipamento. Tente novamente.');
     } finally {
       setFormLoading(false);
     }
@@ -97,16 +99,17 @@ export default function EquipmentPage() {
       await api.delete(`/equipment/deleteEquipment/${deleteModal.id}`);
       setDeleteModal({ open: false, id: null });
       fetchEquipment();
+      window.showNotification('success', 'Equipamento deletado com sucesso!');
     } catch (error) {
       console.error('Erro ao eliminar equipamento:', error);
-      alert('Erro ao eliminar equipamento');
+      window.showNotification('error', 'Erro ao deletar equipamento. Tente novamente.');
     } finally {
       setFormLoading(false);
     }
   };
 
-  const handleFilterChange = (newFilters) => {
-    setFilters(newFilters);
+  const handleFilterChange = (key, value) => {
+    setFilters((prev) => ({ ...prev, [key]: value }));
     setPage(1);
   };
 
@@ -152,12 +155,10 @@ export default function EquipmentPage() {
 
   return (
     <div className="list-page">
-      <div className="list-header">
+      <div className="page-header">
         <div>
           <h1>Equipamento</h1>
-          <p style={{ color: '#999', margin: '0.5rem 0 0 0' }}>
-            Total: {total} {total === 1 ? 'item' : 'itens'}
-          </p>
+          <p className="page-subtitle">Gerencia o inventário de equipamentos</p>
         </div>
         <button className="btn btn-primary" onClick={() => setShowCreateModal(true)}>
           + Novo Equipamento
@@ -170,6 +171,7 @@ export default function EquipmentPage() {
           {
             name: 'status',
             label: 'Status',
+            value: filters.status,
             options: [
               { value: '', label: 'Todos' },
               { value: 'available', label: 'Disponível' },
@@ -184,34 +186,37 @@ export default function EquipmentPage() {
         loading={loading}
       />
 
-      <Table
-        columns={columns}
-        rows={equipment}
-        loading={loading}
-        onRowClick={(item) => navigate(`/equipment/${item.id}`)}
-        actions={[
-          {
-            id: 'edit',
-            label: 'Editar equipamento',
-            icon: <EditIcon sx={{ fontSize: '1.1rem' }} />,
-            onClick: (item) => setEditModal({ open: true, equipment: item })
-          },
-          {
-            id: 'delete',
-            label: 'Eliminar equipamento',
-            icon: <DeleteIcon sx={{ fontSize: '1.1rem' }} />,
-            onClick: (item) => setDeleteModal({ open: true, id: item.id })
-          }
-        ]}
-      />
-
-      {totalPages > 1 && (
-        <Pagination
-          currentPage={page}
-          totalPages={totalPages}
-          onPageChange={setPage}
+      <div className="table-section">
+        <p className="total-info">Total: {total} {total === 1 ? 'item' : 'itens'}</p>
+        <Table
+          columns={columns}
+          rows={equipment}
+          loading={loading}
+          onRowClick={(item) => navigate(`/equipment/${item.id}`)}
+          actions={[
+            {
+              id: 'edit',
+              label: 'Editar equipamento',
+              icon: <EditIcon sx={{ fontSize: '1.1rem' }} />,
+              onClick: (item) => setEditModal({ open: true, equipment: item })
+            },
+            {
+              id: 'delete',
+              label: 'Eliminar equipamento',
+              icon: <DeleteIcon sx={{ fontSize: '1.1rem' }} />,
+              onClick: (item) => setDeleteModal({ open: true, id: item.id })
+            }
+          ]}
         />
-      )}
+
+        {totalPages > 1 && (
+          <Pagination
+            currentPage={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+          />
+        )}
+      </div>
 
       {/* Modals */}
       <FormModal

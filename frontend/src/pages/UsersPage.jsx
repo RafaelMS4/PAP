@@ -40,7 +40,7 @@ export default function UsersPage() {
       setUsers(response.data.users || []);
       setTotal(response.data.total || 0);
     } catch (error) {
-      console.error('Erro ao buscar utilizadores:', error);
+      console.error('Erro ao buscar funcionários:', error);
       setUsers([]);
     } finally {
       setLoading(false);
@@ -57,7 +57,7 @@ export default function UsersPage() {
       const normalizedEmail = buildHelpdeskEmail(formData.email);
 
       if (!normalizedEmail) {
-        alert(`Email inválido. Usa apenas @${HELPDESK_EMAIL_DOMAIN}`);
+        window.showNotification('error', `Email inválido. Usa apenas @${HELPDESK_EMAIL_DOMAIN}`);
         return;
       }
 
@@ -70,9 +70,10 @@ export default function UsersPage() {
       setShowCreateModal(false);
       setPage(1);
       fetchUsers();
+      window.showNotification('success', 'Funcionário criado com sucesso!');
     } catch (error) {
       console.error('Erro ao criar utilizador:', error);
-      alert('Erro ao criar utilizador');
+      window.showNotification('error', 'Erro ao criar funcionário. Tente novamente.');
     } finally {
       setFormLoading(false);
     }
@@ -84,7 +85,7 @@ export default function UsersPage() {
       const normalizedEmail = buildHelpdeskEmail(formData.email);
 
       if (!normalizedEmail) {
-        alert(`Email inválido. Usa apenas @${HELPDESK_EMAIL_DOMAIN}`);
+        window.showNotification('error', `Email inválido. Usa apenas @${HELPDESK_EMAIL_DOMAIN}`);
         return;
       }
 
@@ -95,9 +96,10 @@ export default function UsersPage() {
       });
       setEditModal({ open: false, user: null });
       fetchUsers();
+      window.showNotification('success', 'Funcionário atualizado com sucesso!');
     } catch (error) {
       console.error('Erro ao atualizar utilizador:', error);
-      alert('Erro ao atualizar utilizador');
+      window.showNotification('error', 'Erro ao atualizar funcionário. Tente novamente.');
     } finally {
       setFormLoading(false);
     }
@@ -109,16 +111,17 @@ export default function UsersPage() {
       await api.delete(`/users/deleteUser/${deleteModal.id}`);
       setDeleteModal({ open: false, id: null });
       fetchUsers();
+      window.showNotification('success', 'Funcionário deletado com sucesso!');
     } catch (error) {
       console.error('Erro ao eliminar utilizador:', error);
-      alert('Erro ao eliminar utilizador');
+      window.showNotification('error', 'Erro ao deletar funcionário. Tente novamente.');
     } finally {
       setFormLoading(false);
     }
   };
 
-  const handleFilterChange = (newFilters) => {
-    setFilters(newFilters);
+  const handleFilterChange = (key, value) => {
+    setFilters((prev) => ({ ...prev, [key]: value }));
     setPage(1);
   };
 
@@ -166,12 +169,10 @@ export default function UsersPage() {
 
   return (
     <div className="list-page">
-      <div className="list-header">
+      <div className="page-header">
         <div>
-          <h1>Utilizadores</h1>
-          <p style={{ color: '#999', margin: '0.5rem 0 0 0' }}>
-            Total: {total} {total === 1 ? 'utilizador' : 'utilizadores'}
-          </p>
+          <h1>Funcionários</h1>
+          <p className="page-subtitle">Gerencia os funcionários e permissões do sistema</p>
         </div>
         <button className="btn btn-primary" onClick={() => setShowCreateModal(true)}>
           + Novo Utilizador
@@ -184,6 +185,7 @@ export default function UsersPage() {
           {
             name: 'role',
             label: 'Função',
+            value: filters.role,
             options: [
               { value: '', label: 'Todas' },
               { value: 'user', label: 'Utilizador' },
@@ -196,34 +198,37 @@ export default function UsersPage() {
         loading={loading}
       />
 
-      <Table
-        columns={columns}
-        rows={users}
-        loading={loading}
-        onRowClick={(user) => navigate(`/users/${user.id}`)}
-        actions={[
-          {
-            id: 'edit',
-            label: 'Editar utilizador',
-            icon: <EditIcon sx={{ fontSize: '1.1rem' }} />,
-            onClick: (user) => setEditModal({ open: true, user })
-          },
-          {
-            id: 'delete',
-            label: 'Eliminar utilizador',
-            icon: <DeleteIcon sx={{ fontSize: '1.1rem' }} />,
-            onClick: (user) => setDeleteModal({ open: true, id: user.id })
-          }
-        ]}
-      />
-
-      {totalPages > 1 && (
-        <Pagination
-          currentPage={page}
-          totalPages={totalPages}
-          onPageChange={setPage}
+      <div className="table-section">
+        <p className="total-info">Total: {total} {total === 1 ? 'funcionário' : 'funcionários'}</p>
+        <Table
+          columns={columns}
+          rows={users}
+          loading={loading}
+          onRowClick={(user) => navigate(`/users/${user.id}`)}
+          actions={[
+            {
+              id: 'edit',
+              label: 'Editar utilizador',
+              icon: <EditIcon sx={{ fontSize: '1.1rem' }} />,
+              onClick: (user) => setEditModal({ open: true, user })
+            },
+            {
+              id: 'delete',
+              label: 'Eliminar utilizador',
+              icon: <DeleteIcon sx={{ fontSize: '1.1rem' }} />,
+              onClick: (user) => setDeleteModal({ open: true, id: user.id })
+            }
+          ]}
         />
-      )}
+
+        {totalPages > 1 && (
+          <Pagination
+            currentPage={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+          />
+        )}
+      </div>
 
       {/* Modals */}
       <FormModal

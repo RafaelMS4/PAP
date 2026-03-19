@@ -313,9 +313,11 @@ export default function TicketDetailPage() {
           <div className="detail-card-box">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
               <div className="detail-card-title" style={{ margin: 0 }}><ChatIcon sx={{ fontSize: '1.2rem', mr: 0.5, verticalAlign: 'middle' }} /> Mensagens ({regularComments.length})</div>
-              <button className="btn btn-primary" style={{ padding: '0.5rem 1rem' }} onClick={() => setShowCommentModal(true)}>
-                <AddIcon sx={{ fontSize: '1rem', mr: 0.3 }} /> Adicionar
-              </button>
+              {ticket && ticket.status !== 'closed' && (
+                <button className="btn btn-primary" style={{ padding: '0.5rem 1rem' }} onClick={() => setShowCommentModal(true)}>
+                  <AddIcon sx={{ fontSize: '1rem', mr: 0.3 }} /> Adicionar
+                </button>
+              )}
             </div>
             <div className="comments-list">
               {regularComments.length > 0 ? (
@@ -357,7 +359,7 @@ export default function TicketDetailPage() {
               {solutions.map(sol => (
                 <div key={sol.id} style={{ marginBottom: '1rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                    <strong style={{ color: '#4caf50' }}>{sol.username || 'Admin'}</strong>
+                    <strong style={{ color: '#4caf50' }}>{sol.username || 'IT'}</strong>
                     <span style={{ color: '#666', fontSize: '0.85rem' }}>{new Date(sol.created_at).toLocaleString('pt-PT')}</span>
                   </div>
                   <p style={{ color: '#ccc', lineHeight: '1.6' }}>{sol.message}</p>
@@ -370,7 +372,7 @@ export default function TicketDetailPage() {
           <div className="detail-card-box">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
               <div className="detail-card-title" style={{ margin: 0 }}><TaskAltIcon sx={{ fontSize: '1.2rem', mr: 0.5, verticalAlign: 'middle' }} /> Tarefas ({tasks.length})</div>
-              {isAdmin && (
+              {isAdmin && ticket && ticket.status !== 'closed' && (
                 <button className="btn btn-primary" style={{ padding: '0.5rem 1rem' }} onClick={() => setShowTaskModal(true)}>
                   <AddIcon sx={{ fontSize: '1rem', mr: 0.3 }} /> Adicionar
                 </button>
@@ -449,9 +451,9 @@ export default function TicketDetailPage() {
             </div>
           </div>
 
-          {/* Assigned Admin */}
+          {/* Assigned IT */}
           <div className="sidebar-card">
-            <div className="sidebar-card-title">Admin Atribuído</div>
+            <div className="sidebar-card-title">IT Atribuído</div>
             <div className="info-item">
               {ticket.assigned_to ? (
                 isAdmin ? (
@@ -579,8 +581,8 @@ export default function TicketDetailPage() {
             type: 'select',
             required: true,
             options: [
-              { value: 'comment', label: 'Mensagem Normal' },
-              { value: 'solution', label: 'Conclusão (Fecha o Ticket)' }
+              { value: 'comment', label: 'Mensagem' },
+              { value: 'solution', label: 'Conclusão' }
             ],
             defaultValue: 'comment'
           },

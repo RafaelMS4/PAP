@@ -1,12 +1,14 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
 import Table from '../components/Table';
+import { StatusBadge, PriorityBadge } from '../components/Badges';
 import FilterBar from '../components/FilterBar';
 import Pagination from '../components/Pagination';
 import FormModal from '../components/FormModal';
 import { Modal } from '../components/Modal';
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import '../styles/list-page.css';
 
@@ -18,6 +20,8 @@ export default function MyTicketsPage() {
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState({ status: '', priority: '' });
   const [search, setSearch] = useState('');
+  const [sortBy, setSortBy] = useState('id');
+  const [sortDir, setSortDir] = useState('asc');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [deleteModal, setDeleteModal] = useState({ open: false, id: null });
   const [createLoading, setCreateLoading] = useState(false);
@@ -37,7 +41,7 @@ export default function MyTicketsPage() {
 
       const response = await api.get('/tickets/my/tickets', { params });
       setTickets(response.data.tickets || []);
-      setTotal(response.data.total || 0);
+      setTotal(response.data.pagination?.total ?? response.data.total ?? 0);
     } catch (error) {
       console.error('Erro ao buscar os meus tickets:', error);
       setTickets([]);
@@ -84,8 +88,8 @@ export default function MyTicketsPage() {
     }
   };
 
-  const handleFilterChange = (newFilters) => {
-    setFilters(newFilters);
+  const handleFilterChange = (key, value) => {
+    setFilters((prev) => ({ ...prev, [key]: value }));
     setPage(1);
   };
 
@@ -94,64 +98,75 @@ export default function MyTicketsPage() {
     setPage(1);
   };
 
-  const totalPages = Math.ceil(total / ITEMS_PER_PAGE);
+  const toggleSort = useCallback((column) => {
+    if (sortBy === column) {
+      setSortDir((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortBy(column);
+      setSortDir('asc');
+    }
+  }, [sortBy]);
 
-  const columns = [
+  const getSortIcon = useCallback((column) => {
+    if (sortBy !== column) return null;
+    return sortDir === 'asc' ? ' ▲' : ' ▼';
+  }, [sortBy, sortDir]);
+
+  const columns = useMemo(() => [
     {
-      label: 'ID',
       key: 'id',
+      label: (
+        <span style={{ cursor: 'pointer' }} onClick={() => toggleSort('id')}>
+          ID{getSortIcon('id')}
+        </span>
+      ),
       render: (value) => `#${value.toString().padStart(4, '0')}`
     },
     {
-      label: 'Título',
-      key: 'title'
+      key: 'title',
+      label: 'Título'
     },
     {
-      label: 'Criado por',
-      key: 'creator_display_name',
-      render: (value, row) => value || row.creator_name || '-'
-    },
-    {
-      label: 'Status',
       key: 'status',
-      render: (value) => {
-        const statusMap = { open: 'Aberto', in_progress: 'Em Progresso', waiting: 'Aguardando', resolved: 'Resolvido', closed: 'Fechado' };
-        const colors = { open: '#ff9800', in_progress: '#3d6aff', waiting: '#9c27b0', resolved: '#4caf50', closed: '#999' };
-        return (
-          <span style={{ background: colors[value], color: '#fff', padding: '0.25rem 0.75rem', borderRadius: '12px', fontSize: '0.85rem' }}>
-            {statusMap[value] || value}
-          </span>
-        );
-      }
+      label: 'Status',
+      render: (value) => <StatusBadge status={value} />
     },
     {
-      label: 'Prioridade',
       key: 'priority',
-      render: (value) => {
-        const priorityMap = { low: 'Baixa', medium: 'Média', high: 'Elevada', urgent: 'Urgente' };
-        const colors = { low: '#4caf50', medium: '#3d6aff', high: '#ff9800', urgent: '#f44336' };
-        return (
-          <span style={{ background: colors[value], color: '#fff', padding: '0.25rem 0.75rem', borderRadius: '12px', fontSize: '0.85rem' }}>
-            {priorityMap[value] || value}
-          </span>
-        );
-      }
+      label: 'Prioridade',
+      render: (value) => <PriorityBadge priority={value} />
     },
     {
-      label: 'Data',
       key: 'created_at',
+      label: 'Criado',
       render: (value) => new Date(value).toLocaleDateString('pt-PT')
     }
-  ];
+  ], [getSortIcon, toggleSort]);
+
+  const sortedTickets = useMemo(() => {
+    const sorted = [...tickets].sort((a, b) => {
+      const aVal = a[sortBy];
+      const bVal = b[sortBy];
+
+      if (aVal == null) return 1;
+      if (bVal == null) return -1;
+
+      if (typeof aVal === 'number' && typeof bVal === 'number') {
+        return aVal - bVal;
+      }
+
+      return String(aVal).localeCompare(String(bVal), 'pt', { numeric: true });
+    });
+
+    return sortDir === 'asc' ? sorted : sorted.reverse();
+  }, [tickets, sortBy, sortDir]);
 
   return (
     <div className="list-page">
       <div className="list-header">
         <div>
           <h1>Os Meus Tickets</h1>
-          <p style={{ color: '#999', margin: '0.5rem 0 0 0' }}>
-            Tickets atribuídos a mim — Total: {total} {total === 1 ? 'ticket' : 'tickets'}
-          </p>
+          <p className="page-subtitle">Tickets atribuidos a si</p>
         </div>
         <button className="btn btn-primary" onClick={() => setShowCreateModal(true)}>
           + Novo Ticket
@@ -188,34 +203,46 @@ export default function MyTicketsPage() {
         loading={loading}
       />
 
-      <Table
-        columns={columns}
-        rows={tickets}
-        loading={loading}
-        onRowClick={(ticket) => navigate(`/tickets/${ticket.id}`)}
-        actions={[
-          {
-            id: 'view',
-            icon: <VisibilityIcon sx={{ fontSize: '1.1rem' }} />,
-            label: 'Ver ticket',
-            onClick: (ticket) => navigate(`/tickets/${ticket.id}`)
-          },
-          {
-            id: 'delete',
-            icon: <DeleteIcon sx={{ fontSize: '1.1rem' }} />,
-            label: 'Eliminar',
-            onClick: (ticket) => setDeleteModal({ open: true, id: ticket.id })
-          }
-        ]}
-      />
-
-      {totalPages > 1 && (
-        <Pagination
-          currentPage={page}
-          totalPages={totalPages}
-          onPageChange={setPage}
+      <div className="table-section">
+        <p className="total-info">Total: {total} tickets</p>
+        <Table
+          columns={columns}
+          rows={sortedTickets}
+          loading={loading}
+          onRowClick={(ticket) => navigate(`/tickets/${ticket.id}`)}
+          actions={[
+            {
+              id: 'view',
+              icon: <VisibilityIcon sx={{ fontSize: '1.1rem' }} />,
+              label: 'Ver ticket',
+              onClick: (ticket) => navigate(`/tickets/${ticket.id}`)
+            },
+            {
+              id: 'edit',
+              icon: <EditIcon sx={{ fontSize: '1.1rem' }} />,
+              label: 'Editar',
+              onClick: (ticket) => navigate(`/tickets/${ticket.id}/edit`)
+            },
+            {
+              id: 'delete',
+              icon: <DeleteIcon sx={{ fontSize: '1.1rem' }} />,
+              label: 'Eliminar',
+              onClick: (ticket) => setDeleteModal({ open: true, id: ticket.id })
+            }
+          ]}
         />
-      )}
+
+        {total > ITEMS_PER_PAGE && (
+          <div className="pagination-wrapper">
+            <Pagination
+              total={total}
+              current={page}
+              pageSize={ITEMS_PER_PAGE}
+              onChange={setPage}
+            />
+          </div>
+        )}
+      </div>
 
       {/* Modals */}
       <FormModal

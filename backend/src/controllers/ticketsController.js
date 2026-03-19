@@ -46,53 +46,85 @@ export const createTicket = async (req, res) => {
 
 export const getAllTickets = async (req, res) => {
   try {
-    const { status, priority, assigned_to } = req.query;
+    const { status, priority, assigned_to, limit = 20, offset = 0, page, title } = req.query;
     const userId = req.userId;
     const userRole = req.userRole;
-
     const { user_id } = req.query;
 
-    let query = `
-      SELECT t.*, 
-             u.username as creator_name,
-             u.name as creator_display_name,
-             a.username as assigned_name
-      FROM tickets t
-      LEFT JOIN users u ON t.user_id = u.id
-      LEFT JOIN users a ON t.assigned_to = a.id
-      WHERE 1=1
-    `;
+    const limitNum = Math.min(parseInt(limit) || 20, 100);
+    let offsetNum = parseInt(offset) || 0;
+
+    // Handle page parameter
+    if (page && !offset) {
+      offsetNum = (parseInt(page) - 1) * limitNum;
+    }
+
+    const whereClauses = ['1=1'];
     const params = [];
 
     // If user is not admin, only show their own tickets
     if (userRole !== 'admin') {
-      query += ' AND t.user_id = ?';
+      whereClauses.push('t.user_id = ?');
       params.push(userId);
     }
 
     // Allow filtering by user_id (for admin viewing a specific user's tickets)
     if (user_id && userRole === 'admin') {
-      query += ' AND t.user_id = ?';
+      whereClauses.push('t.user_id = ?');
       params.push(user_id);
     }
 
     if (status) {
-      query += ' AND t.status = ?';
+      whereClauses.push('t.status = ?');
       params.push(status);
     }
     if (priority) {
-      query += ' AND t.priority = ?';
+      whereClauses.push('t.priority = ?');
       params.push(priority);
     }
     if (assigned_to) {
-      query += ' AND t.assigned_to = ?';
+      whereClauses.push('t.assigned_to = ?');
       params.push(assigned_to);
     }
+    if (title) {
+      whereClauses.push('t.title LIKE ?');
+      params.push(`%${title}%`);
+    }
 
-    query += ' ORDER BY t.created_at DESC LIMIT 100';
+    const whereSQL = whereClauses.join(' AND ');
 
-    const tickets = await dbAll(query, params);
-    res.json({ tickets });
+    // Get total count
+    const countSql = `SELECT COUNT(*) as count FROM tickets t WHERE ${whereSQL}`;
+    const countResult = await dbGet(countSql, params);
+    const total = countResult?.count || 0;
+
+    // Fetch tickets
+    const query = `
+      SELECT t.*, 
+             u.username as creator_name,
+             u.name as creator_display_name,
+             a.username as assigned_name,
+             a.name as assigned_display_name
+      FROM tickets t
+      LEFT JOIN users u ON t.user_id = u.id
+      LEFT JOIN users a ON t.assigned_to = a.id
+      WHERE ${whereSQL}
+      ORDER BY t.created_at DESC
+      LIMIT ? OFFSET ?
+    `;
+
+    const tickets = await dbAll(query, [...params, limitNum, offsetNum]);
+
+    res.json({
+      tickets,
+      pagination: {
+        total,
+        limit: limitNum,
+        offset: offsetNum,
+        page: Math.floor(offsetNum / limitNum) + 1,
+        pages: Math.ceil(total / limitNum)
+      }
+    });
   } catch (error) {
     console.error('Erro ao listar tickets:', error);
     res.status(500).json({ error: 'Erro ao listar tickets' });
@@ -887,70 +919,62 @@ export const removeEquipmentFromTicket = async (req, res) => {
 
 export const getMyTickets = async (req, res) => {
   try {
-    const { status, priority, limit = 50, offset = 0 } = req.query;
+    const { status, priority, limit = 20, offset = 0, page, title } = req.query;
     const userId = req.userId;
     const userRole = req.userRole;
-    const limitNum = Math.min(parseInt(limit) || 50, 100);
-    const offsetNum = parseInt(offset) || 0;
+    const limitNum = Math.min(parseInt(limit) || 20, 100);
+    let offsetNum = parseInt(offset) || 0;
 
-    // For admins, show tickets assigned to them; for users, show tickets they created
-    let sql;
-    const params = [];
-    if (userRole === 'admin') {
-      sql = `SELECT t.*, u.username as creator_name, u.name as creator_display_name
-             FROM tickets t LEFT JOIN users u ON t.user_id = u.id
-             WHERE t.assigned_to = ?`;
-      params.push(userId);
-    } else {
-      sql = `SELECT t.*, u.username as creator_name, u.name as creator_display_name
-             FROM tickets t LEFT JOIN users u ON t.user_id = u.id
-             WHERE t.user_id = ?`;
-      params.push(userId);
+    // Handle page parameter
+    if (page && !offset) {
+      offsetNum = (parseInt(page) - 1) * limitNum;
     }
 
+    const whereClauses = ['t.assigned_to = ?'];
+    const params = [userId];
+
     if (status) {
-      sql += ' AND t.status = ?';
+      whereClauses.push('t.status = ?');
       params.push(status);
     }
 
     if (priority) {
-      sql += ' AND t.priority = ?';
+      whereClauses.push('t.priority = ?');
       params.push(priority);
     }
 
-    sql += ' ORDER BY t.created_at DESC LIMIT ? OFFSET ?';
-    params.push(limitNum, offsetNum);
+    if (title) {
+      whereClauses.push('t.title LIKE ?');
+      params.push(`%${title}%`);
+    }
 
-    const tickets = await dbAll(sql, params);
+    const whereSQL = whereClauses.join(' AND ');
 
     // Get total count
-    let countSql;
-    const countParams = [];
-    if (userRole === 'admin') {
-      countSql = 'SELECT COUNT(*) as count FROM tickets WHERE assigned_to = ?';
-      countParams.push(userId);
-    } else {
-      countSql = 'SELECT COUNT(*) as count FROM tickets WHERE user_id = ?';
-      countParams.push(userId);
-    }
-    if (status) {
-      countSql += ' AND status = ?';
-      countParams.push(status);
-    }
-    if (priority) {
-      countSql += ' AND priority = ?';
-      countParams.push(priority);
-    }
+    const countSql = `SELECT COUNT(*) as count FROM tickets t WHERE ${whereSQL}`;
+    const countResult = await dbGet(countSql, params);
+    const total = countResult?.count || 0;
 
-    const countResult = await dbGet(countSql, countParams);
+    const sql = `
+      SELECT t.*, u.username as creator_name, u.name as creator_display_name, a.username as assigned_name, a.name as assigned_display_name
+      FROM tickets t
+      LEFT JOIN users u ON t.user_id = u.id
+      LEFT JOIN users a ON t.assigned_to = a.id
+      WHERE ${whereSQL}
+      ORDER BY t.created_at DESC
+      LIMIT ? OFFSET ?
+    `;
+
+    const tickets = await dbAll(sql, [...params, limitNum, offsetNum]);
 
     res.json({
       tickets,
       pagination: {
-        total: countResult.count,
+        total,
         limit: limitNum,
         offset: offsetNum,
-        pages: Math.ceil(countResult.count / limitNum)
+        page: Math.floor(offsetNum / limitNum) + 1,
+        pages: Math.ceil(total / limitNum)
       }
     });
   } catch (error) {
@@ -961,51 +985,58 @@ export const getMyTickets = async (req, res) => {
 
 export const getAdminQueue = async (req, res) => {
   try {
-    const { priority, category, limit = 50, offset = 0 } = req.query;
-    const limitNum = Math.min(parseInt(limit) || 50, 100);
-    const offsetNum = parseInt(offset) || 0;
+    const { priority, category, limit = 20, offset = 0, page, title } = req.query;
+    const limitNum = Math.min(parseInt(limit) || 20, 100);
+    let offsetNum = parseInt(offset) || 0;
 
-    let sql = `SELECT tickets.*, users.username as creator_name, users.name as creator_display_name 
-               FROM tickets LEFT JOIN users ON users.id = tickets.user_id 
-               WHERE tickets.assigned_to IS NULL AND tickets.status != 'closed'`;
+    // Handle page parameter
+    if (page && !offset) {
+      offsetNum = (parseInt(page) - 1) * limitNum;
+    }
+
+    const whereClauses = ['tickets.status = "open"'];
     const params = [];
 
     if (priority) {
-      sql += ' AND tickets.priority = ?';
+      whereClauses.push('tickets.priority = ?');
       params.push(priority);
     }
 
     if (category) {
-      sql += ' AND tickets.category = ?';
+      whereClauses.push('tickets.category = ?');
       params.push(category);
     }
 
-    sql += ' ORDER BY tickets.priority DESC, tickets.created_at ASC LIMIT ? OFFSET ?';
-    params.push(limitNum, offsetNum);
+    if (title) {
+      whereClauses.push('tickets.title LIKE ?');
+      params.push(`%${title}%`);
+    }
 
-    const tickets = await dbAll(sql, params);
+    const whereSQL = whereClauses.join(' AND ');
 
     // Get total count
-    let countSql = 'SELECT COUNT(*) as count FROM tickets WHERE assigned_to IS NULL AND status != "closed"';
-    const countParams = [];
-    if (priority) {
-      countSql += ' AND priority = ?';
-      countParams.push(priority);
-    }
-    if (category) {
-      countSql += ' AND category = ?';
-      countParams.push(category);
-    }
+    const countSql = `SELECT COUNT(*) as count FROM tickets WHERE ${whereSQL}`;
+    const countResult = await dbGet(countSql, params);
+    const total = countResult?.count || 0;
 
-    const countResult = await dbGet(countSql, countParams);
+    const sql = `SELECT tickets.*, users.username as creator_name, users.name as creator_display_name, a.username as assigned_name, a.name as assigned_display_name
+                 FROM tickets
+                 LEFT JOIN users ON users.id = tickets.user_id
+                 LEFT JOIN users a ON tickets.assigned_to = a.id
+                 WHERE ${whereSQL}
+                 ORDER BY tickets.priority DESC, tickets.created_at ASC
+                 LIMIT ? OFFSET ?`;
+
+    const tickets = await dbAll(sql, [...params, limitNum, offsetNum]);
 
     res.json({
       tickets,
       pagination: {
-        total: countResult.count,
+        total,
         limit: limitNum,
         offset: offsetNum,
-        pages: Math.ceil(countResult.count / limitNum)
+        page: Math.floor(offsetNum / limitNum) + 1,
+        pages: Math.ceil(total / limitNum)
       }
     });
   } catch (error) {

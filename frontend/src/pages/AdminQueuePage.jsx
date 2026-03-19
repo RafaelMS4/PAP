@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
 import Table from '../components/Table';
@@ -20,6 +20,8 @@ export default function AdminQueuePage() {
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState({ status: 'open', priority: '' });
   const [search, setSearch] = useState('');
+  const [sortBy, setSortBy] = useState('id');
+  const [sortDir, setSortDir] = useState('asc');
   const [assignModal, setAssignModal] = useState({ open: false, ticket: null });
   const [deleteModal, setDeleteModal] = useState({ open: false, id: null });
   const [assignLoading, setAssignLoading] = useState(false);
@@ -32,7 +34,7 @@ export default function AdminQueuePage() {
       const response = await api.get('/users/getUsers');
       setUsers(response.data.users || []);
     } catch (error) {
-      console.error('Erro ao buscar utilizadores:', error);
+      console.error('Erro ao buscar funcionários:', error);
     }
   };
 
@@ -53,7 +55,7 @@ export default function AdminQueuePage() {
 
       const response = await api.get('/tickets/admin/queue', { params });
       setTickets(response.data.tickets || []);
-      setTotal(response.data.total || 0);
+      setTotal(response.data.pagination?.total ?? response.data.total ?? 0);
     } catch (error) {
       console.error('Erro ao buscar fila de admin:', error);
       setTickets([]);
@@ -74,9 +76,10 @@ export default function AdminQueuePage() {
       });
       setAssignModal({ open: false, ticket: null });
       fetchTickets();
+      window.showNotification('success', 'Ticket atribuído com sucesso!');
     } catch (error) {
       console.error('Erro ao atribuir ticket:', error);
-      alert('Erro ao atribuir ticket');
+      window.showNotification('error', 'Erro ao atribuir ticket. Tente novamente.');
     } finally {
       setAssignLoading(false);
     }
@@ -90,9 +93,10 @@ export default function AdminQueuePage() {
         assigned_to: currentUser.id
       });
       fetchTickets();
+      window.showNotification('success', 'Ticket atribuído com sucesso!');
     } catch (error) {
       console.error('Erro ao atribuir ticket:', error);
-      alert('Erro ao atribuir ticket');
+      window.showNotification('error', 'Erro ao atribuir ticket. Tente novamente.');
     } finally {
       setAssignLoading(false);
     }
@@ -104,16 +108,17 @@ export default function AdminQueuePage() {
       await api.delete(`/tickets/${deleteModal.id}`);
       setDeleteModal({ open: false, id: null });
       fetchTickets();
+      window.showNotification('success', 'Ticket deletado com sucesso!');
     } catch (error) {
       console.error('Erro ao eliminar ticket:', error);
-      alert('Erro ao eliminar ticket');
+      window.showNotification('error', 'Erro ao deletar ticket. Tente novamente.');
     } finally {
       setAssignLoading(false);
     }
   };
 
-  const handleFilterChange = (newFilters) => {
-    setFilters(newFilters);
+  const handleFilterChange = (key, value) => {
+    setFilters((prev) => ({ ...prev, [key]: value }));
     setPage(1);
   };
 
@@ -121,12 +126,28 @@ export default function AdminQueuePage() {
     setSearch(query);
     setPage(1);
   };
+  
+  const toggleSort = useCallback((column) => {
+    if (sortBy === column) {
+      setSortDir((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortBy(column);
+      setSortDir('asc');
+    }
+  }, [sortBy]);
 
-  const totalPages = Math.ceil(total / ITEMS_PER_PAGE);
+  const getSortIcon = useCallback((column) => {
+    if (sortBy !== column) return null;
+    return sortDir === 'asc' ? ' ▲' : ' ▼';
+  }, [sortBy, sortDir]);
 
   const columns = [
     {
-      label: 'ID',
+      label: (
+        <span style={{ cursor: 'pointer' }} onClick={() => toggleSort('id')}>
+          ID{getSortIcon('id')}
+        </span>
+      ),
       key: 'id',
       render: (value) => `#${value.toString().padStart(4, '0')}`
     },
@@ -172,14 +193,30 @@ export default function AdminQueuePage() {
     }
   ];
 
+  const sortedTickets = useMemo(() => {
+    const sorted = [...tickets].sort((a, b) => {
+      const aVal = a[sortBy];
+      const bVal = b[sortBy];
+
+      if (aVal == null) return 1;
+      if (bVal == null) return -1;
+
+      if (typeof aVal === 'number' && typeof bVal === 'number') {
+        return aVal - bVal;
+      }
+
+      return String(aVal).localeCompare(String(bVal), 'pt', { numeric: true });
+    });
+
+    return sortDir === 'asc' ? sorted : sorted.reverse();
+  }, [tickets, sortBy, sortDir]);
+
   return (
     <div className="list-page">
       <div className="list-header">
         <div>
           <h1>Fila de Tickets</h1>
-          <p style={{ color: '#999', margin: '0.5rem 0 0 0' }}>
-            Total: {total} {total === 1 ? 'ticket' : 'tickets'}
-          </p>
+          <p className="page-subtitle">Tickets não atribuídos</p>
         </div>
       </div>
 
@@ -189,6 +226,7 @@ export default function AdminQueuePage() {
           {
             name: 'status',
             label: 'Status',
+            value: filters.status,
             options: [
               { value: '', label: 'Todos' },
               { value: 'open', label: 'Aberto' },
@@ -199,6 +237,7 @@ export default function AdminQueuePage() {
           {
             name: 'priority',
             label: 'Prioridade',
+            value: filters.priority,
             options: [
               { value: '', label: 'Todas' },
               { value: 'low', label: 'Baixa' },
@@ -213,46 +252,52 @@ export default function AdminQueuePage() {
         loading={loading}
       />
 
-      <Table
-        columns={columns}
-        rows={tickets}
-        loading={loading}
-        onRowClick={(ticket) => navigate(`/tickets/${ticket.id}`)}
-        actions={[
-          {
-            id: 'view',
-            icon: <VisibilityIcon sx={{ fontSize: '1.1rem' }} />,
-            label: 'Ver ticket',
-            onClick: (ticket) => navigate(`/tickets/${ticket.id}`)
-          },
-          {
-            id: 'assign-me',
-            icon: <PanToolIcon sx={{ fontSize: '1.1rem' }} />,
-            label: 'Ficar com ticket',
-            onClick: (ticket) => handleAssignToMe(ticket)
-          },
-          {
-            id: 'assign',
-            icon: <AssignmentIcon sx={{ fontSize: '1.1rem' }} />,
-            label: 'Atribuir a outro',
-            onClick: (ticket) => setAssignModal({ open: true, ticket })
-          },
-          {
-            id: 'delete',
-            icon: <DeleteIcon sx={{ fontSize: '1.1rem' }} />,
-            label: 'Eliminar',
-            onClick: (ticket) => setDeleteModal({ open: true, id: ticket.id })
-          }
-        ]}
-      />
-
-      {totalPages > 1 && (
-        <Pagination
-          currentPage={page}
-          totalPages={totalPages}
-          onPageChange={setPage}
+      <div className="table-section">
+        <p className="total-info">Total: {total} tickets</p>
+        <Table
+          columns={columns}
+          rows={sortedTickets}
+          loading={loading}
+          onRowClick={(ticket) => navigate(`/tickets/${ticket.id}`)}
+          actions={[
+            {
+              id: 'view',
+              icon: <VisibilityIcon sx={{ fontSize: '1.1rem' }} />,
+              label: 'Ver ticket',
+              onClick: (ticket) => navigate(`/tickets/${ticket.id}`)
+            },
+            {
+              id: 'assign-me',
+              icon: <PanToolIcon sx={{ fontSize: '1.1rem' }} />,
+              label: 'Ficar com ticket',
+              onClick: (ticket) => handleAssignToMe(ticket)
+            },
+            {
+              id: 'assign',
+              icon: <AssignmentIcon sx={{ fontSize: '1.1rem' }} />,
+              label: 'Atribuir a outro',
+              onClick: (ticket) => setAssignModal({ open: true, ticket })
+            },
+            {
+              id: 'delete',
+              icon: <DeleteIcon sx={{ fontSize: '1.1rem' }} />,
+              label: 'Eliminar',
+              onClick: (ticket) => setDeleteModal({ open: true, id: ticket.id })
+            }
+          ]}
         />
-      )}
+
+        {total > ITEMS_PER_PAGE && (
+          <div className="pagination-wrapper">
+            <Pagination
+              total={total}
+              current={page}
+              pageSize={ITEMS_PER_PAGE}
+              onChange={setPage}
+            />
+          </div>
+        )}
+      </div>
 
       {/* Modals */}
       <FormModal

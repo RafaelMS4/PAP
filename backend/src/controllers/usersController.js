@@ -42,7 +42,17 @@ export const getUsers = async (req, res) => {
     const limitNum = Math.min(parseInt(limit) || 50, 100);
     const offsetNum = parseInt(offset) || 0;
 
-    let sql = 'SELECT id, name, email, role, created_at FROM users WHERE deleted_at IS NULL';
+    let sql = `
+      SELECT
+        u.id,
+        u.name,
+        u.email,
+        u.role,
+        u.created_at,
+        (SELECT COUNT(*) FROM tickets t WHERE t.user_id = u.id) AS ticket_count
+      FROM users u
+      WHERE u.deleted_at IS NULL
+    `;
     const params = [];
 
     if (role) {
