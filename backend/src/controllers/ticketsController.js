@@ -275,16 +275,24 @@ export const deleteTicket = async (req, res) => {
       return res.status(404).json({ error: 'Ticket não encontrado' });
     }
 
-    // Delete related attachments from filesystem
-    const attachments = await dbAll('SELECT filepath FROM ticket_attachments WHERE ticket_id = ?', [id]);
+    const attachments = await dbAll(
+      'SELECT filepath FROM ticket_attachments WHERE ticket_id = ?',
+      [id]
+    );
     for (const attachment of attachments) {
       if (fs.existsSync(attachment.filepath)) {
         fs.unlinkSync(attachment.filepath);
       }
     }
 
+    await dbRun('DELETE FROM ticket_attachments WHERE ticket_id = ?', [id]);
+    await dbRun('DELETE FROM ticket_comments WHERE ticket_id = ?', [id]);
+    await dbRun('DELETE FROM ticket_time_logs WHERE ticket_id = ?', [id]);
+    await dbRun('DELETE FROM ticket_equipment WHERE ticket_id = ?', [id]);
+    await dbRun('DELETE FROM ticket_history WHERE ticket_id = ?', [id]);
+
     await dbRun('DELETE FROM tickets WHERE id = ?', [id]);
-    
+
     res.json({ message: 'Ticket eliminado com sucesso' });
   } catch (error) {
     console.error('Erro ao eliminar ticket:', error);
@@ -1020,24 +1028,22 @@ export const getMyTickets = async (req, res) => {
     const limitNum = Math.min(parseInt(limit) || 20, 100);
     let offsetNum = parseInt(offset) || 0;
 
-    // Handle page parameter
     if (page && !offset) {
       offsetNum = (parseInt(page) - 1) * limitNum;
     }
 
-    const whereClauses = ['t.assigned_to = ?'];
+    const isAdmin = userRole === 'admin';
+    const whereClauses = [isAdmin ? 't.assigned_to = ?' : 't.user_id = ?'];
     const params = [userId];
 
     if (status) {
       whereClauses.push('t.status = ?');
       params.push(status);
     }
-
     if (priority) {
       whereClauses.push('t.priority = ?');
       params.push(priority);
     }
-
     if (title) {
       whereClauses.push('t.title LIKE ?');
       params.push(`%${title}%`);
@@ -1045,13 +1051,18 @@ export const getMyTickets = async (req, res) => {
 
     const whereSQL = whereClauses.join(' AND ');
 
-    // Get total count
-    const countSql = `SELECT COUNT(*) as count FROM tickets t WHERE ${whereSQL}`;
-    const countResult = await dbGet(countSql, params);
+    const countResult = await dbGet(
+      `SELECT COUNT(*) as count FROM tickets t WHERE ${whereSQL}`,
+      params
+    );
     const total = countResult?.count || 0;
 
     const sql = `
-      SELECT t.*, u.username as creator_name, u.name as creator_display_name, a.username as assigned_name, a.name as assigned_display_name
+      SELECT t.*,
+             u.username as creator_name,
+             u.name as creator_display_name,
+             a.username as assigned_name,
+             a.name as assigned_display_name
       FROM tickets t
       LEFT JOIN users u ON t.user_id = u.id
       LEFT JOIN users a ON t.assigned_to = a.id
@@ -1069,12 +1080,12 @@ export const getMyTickets = async (req, res) => {
         limit: limitNum,
         offset: offsetNum,
         page: Math.floor(offsetNum / limitNum) + 1,
-        pages: Math.ceil(total / limitNum)
-      }
+        pages: Math.ceil(total / limitNum),
+      },
     });
   } catch (error) {
     console.error('Get my tickets error:', error);
-    res.status(500).json({ error: 'Erro ao buscar seus tickets' });
+    res.status(500).json({ error: 'Erro ao buscar tickets' });
   }
 };
 
@@ -1181,23 +1192,37 @@ export const updateTicketStatus = async (req, res) => {
       return res.status(400).json({ error: 'Status inválido' });
     }
 
-    const result = await dbRun(
-      'UPDATE tickets SET status = ? WHERE id = ?',
-      [status, id]
-    );
-
-    if (result.changes === 0) {
+    const ticket = await dbGet('SELECT * FROM tickets WHERE id = ?', [id]);
+    if (!ticket) {
       return res.status(404).json({ error: 'Ticket não encontrado' });
     }
 
-    // Log action in history
+    if (ticket.status === status) {
+      return res.json({ message: 'Status já está atualizado', ticket });
+    }
+
+    let resolvedAtSQL = '';
+    if (status === 'closed' || status === 'resolved') {
+      resolvedAtSQL = ticket.resolved_at
+        ? ''
+        : ', resolved_at = CURRENT_TIMESTAMP';
+    } else {
+      resolvedAtSQL = ', resolved_at = NULL';
+    }
+
     await dbRun(
-      'INSERT INTO ticket_history (ticket_id, user_id, action, field_changed, old_value, new_value) VALUES (?, ?, ?, ?, ?, ?)',
-      [id, req.userId, 'status_changed', 'status', req.body.old_status || '', status]
+      `UPDATE tickets SET status = ?, updated_at = CURRENT_TIMESTAMP${resolvedAtSQL} WHERE id = ?`,
+      [status, id]
     );
 
-    const ticket = await dbGet('SELECT * FROM tickets WHERE id = ?', [id]);
-    res.json({ message: 'Status atualizado', ticket });
+    await dbRun(
+      `INSERT INTO ticket_history (ticket_id, user_id, action, field_changed, old_value, new_value)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [id, req.userId, 'status_changed', 'status', ticket.status, status]
+    );
+
+    const updatedTicket = await dbGet('SELECT * FROM tickets WHERE id = ?', [id]);
+    res.json({ message: 'Status atualizado', ticket: updatedTicket });
   } catch (error) {
     console.error('Update ticket status error:', error);
     res.status(500).json({ error: 'Erro ao atualizar status' });

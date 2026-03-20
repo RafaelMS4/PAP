@@ -470,7 +470,7 @@ export default function EquipmentDetailPage() {
       {/* Delete Modal */}
       <ConfirmModal
         isOpen={deleteModal}
-        onClose={() => setDeleteModal(false)}
+        onCancel={() => setDeleteModal(false)}
         onConfirm={handleDeleteEquipment}
         title="Eliminar Equipamento"
         message={`Tem a certeza que deseja eliminar "${equipment.name}"?`}
@@ -479,7 +479,7 @@ export default function EquipmentDetailPage() {
 
       <ConfirmModal
         isOpen={unassignModal}
-        onClose={() => setUnassignModal(false)}
+        onCancel={() => setUnassignModal(false)}
         onConfirm={() => {
           handleUnassignUser();
           setUnassignModal(false);
