@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import api from '../api';
 import { StatusBadge, PriorityBadge } from '../components/Badges';
@@ -18,7 +18,39 @@ import ComputerIcon from '@mui/icons-material/Computer';
 import CloseIcon from '@mui/icons-material/Close';
 import AddIcon from '@mui/icons-material/Add';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import AttachFileIcon from '@mui/icons-material/AttachFile';
+import DownloadIcon from '@mui/icons-material/Download';
+import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
+import ImageIcon from '@mui/icons-material/Image';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import HistoryIcon from '@mui/icons-material/History';
 import '../styles/detail-page.css';
+
+const MAX_FILE_SIZE = 50 * 1024 * 1024;
+const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp'];
+
+function isImage(mimeType) {
+  return IMAGE_TYPES.includes(mimeType);
+}
+
+function isPdf(mimeType) {
+  return mimeType === 'application/pdf';
+}
+
+function formatBytes(bytes) {
+  if (!bytes) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+}
+
+function getFileIcon(mimeType) {
+  if (!mimeType) return <InsertDriveFileIcon style={{ color: '#999' }} />;
+  if (isImage(mimeType)) return <ImageIcon style={{ color: '#3d6aff' }} />;
+  if (isPdf(mimeType)) return <InsertDriveFileIcon style={{ color: '#ff5722' }} />;
+  return <InsertDriveFileIcon style={{ color: '#999' }} />;
+}
 
 export default function TicketDetailPage() {
   const { id } = useParams();
@@ -27,6 +59,8 @@ export default function TicketDetailPage() {
   const [comments, setComments] = useState([]);
   const [timeLogs, setTimeLogs] = useState([]);
   const [ticketEquipment, setTicketEquipment] = useState([]);
+  const [attachments, setAttachments] = useState([]);
+  const [imageBlobUrls, setImageBlobUrls] = useState({}); // { [attachmentId]: blobUrl }
   const [allEquipment, setAllEquipment] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCommentModal, setShowCommentModal] = useState(false);
@@ -36,35 +70,62 @@ export default function TicketDetailPage() {
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [admins, setAdmins] = useState([]);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const fileInputRef = useRef(null);
+  const blobUrlsRef = useRef({});
 
   const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
   const isAdmin = currentUser.role === 'admin';
 
   useEffect(() => {
     fetchTicketDetails();
+    return () => {
+      // Limpar blob URLs quando o componente desmonta
+      Object.values(blobUrlsRef.current).forEach((url) => window.URL.revokeObjectURL(url));
+    };
   }, [id]);
+
+  // Carregar blob URLs para imagens sempre que os attachments mudam
+  useEffect(() => {
+    const imageAttachments = attachments.filter((a) => isImage(a.file_type));
+    imageAttachments.forEach(async (att) => {
+      if (blobUrlsRef.current[att.id]) return; // já carregado
+      try {
+        const response = await api.get(`/tickets/attachments/${att.id}/download?inline=true`, {
+          responseType: 'blob',
+        });
+        const url = window.URL.createObjectURL(new Blob([response.data], { type: att.file_type }));
+        blobUrlsRef.current[att.id] = url;
+        setImageBlobUrls((prev) => ({ ...prev, [att.id]: url }));
+      } catch (e) {
+        console.error('Erro ao carregar thumbnail:', e);
+      }
+    });
+  }, [attachments]);
 
   const fetchTicketDetails = async () => {
     try {
       setLoading(true);
       const ticketRes = await api.get(`/tickets/${id}`);
       const ticketData = ticketRes.data.ticket || ticketRes.data;
-      
+
       if (!isAdmin && ticketData.user_id !== currentUser.id) {
         navigate('/user-dashboard');
         return;
       }
 
-      const [commentsRes, timeLogsRes, equipmentRes] = await Promise.all([
+      const [commentsRes, timeLogsRes, equipmentRes, attachmentsRes] = await Promise.all([
         api.get(`/tickets/${id}/comments`).catch(() => ({ data: { comments: [] } })),
         api.get(`/tickets/${id}/time-logs`).catch(() => ({ data: { timeLogs: [] } })),
         api.get(`/tickets/${id}/equipment`).catch(() => ({ data: { ticketEquipment: [] } })),
+        api.get(`/tickets/${id}/attachments`).catch(() => ({ data: { attachments: [] } })),
       ]);
 
       setTicket(ticketData);
       setComments(commentsRes.data.comments || []);
       setTimeLogs(timeLogsRes.data.timeLogs || timeLogsRes.data.time_logs || []);
       setTicketEquipment(equipmentRes.data.ticketEquipment || []);
+      setAttachments(attachmentsRes.data.attachments || []);
     } catch (error) {
       console.error('Erro ao buscar ticket:', error);
     } finally {
@@ -72,28 +133,100 @@ export default function TicketDetailPage() {
     }
   };
 
+  const handleOpenInline = async (att) => {
+    try {
+      const response = await api.get(`/tickets/attachments/${att.id}/download?inline=true`, {
+        responseType: 'blob',
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: att.file_type }));
+      window.open(url, '_blank');
+      setTimeout(() => window.URL.revokeObjectURL(url), 60000);
+    } catch (error) {
+      window.showNotification('error', 'Erro ao abrir ficheiro');
+    }
+  };
+
+  const handleDownloadAttachment = async (att) => {
+    try {
+      const response = await api.get(`/tickets/attachments/${att.id}/download`, {
+        responseType: 'blob',
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', att.filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      window.showNotification('error', 'Erro ao descarregar ficheiro');
+    }
+  };
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (file.size > MAX_FILE_SIZE) {
+      window.showNotification('error', 'Ficheiro demasiado grande! Máximo 50MB.');
+      e.target.value = '';
+      return;
+    }
+
+    try {
+      setUploadingFile(true);
+      const formData = new FormData();
+      formData.append('file', file);
+      await api.post(`/tickets/${id}/attachments`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      window.showNotification('success', 'Ficheiro anexado com sucesso!');
+      fetchTicketDetails();
+    } catch (error) {
+      window.showNotification('error', error.response?.data?.error || 'Erro ao anexar ficheiro');
+    } finally {
+      setUploadingFile(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleDeleteAttachment = async (attachmentId) => {
+    if (!confirm('Eliminar este anexo?')) return;
+    try {
+      await api.delete(`/tickets/${id}/attachments/${attachmentId}`);
+      // Limpar blob URL se existir
+      if (blobUrlsRef.current[attachmentId]) {
+        window.URL.revokeObjectURL(blobUrlsRef.current[attachmentId]);
+        delete blobUrlsRef.current[attachmentId];
+        setImageBlobUrls((prev) => {
+          const updated = { ...prev };
+          delete updated[attachmentId];
+          return updated;
+        });
+      }
+      window.showNotification('success', 'Anexo eliminado com sucesso');
+      fetchTicketDetails();
+    } catch (error) {
+      window.showNotification('error', 'Erro ao eliminar anexo');
+    }
+  };
+
   const handleAddComment = async (formData) => {
     try {
       setActionLoading(true);
       const commentType = formData.comment_type || 'comment';
-      
       await api.post(`/tickets/${id}/comments`, {
         message: formData.message,
-        comment_type: commentType
+        comment_type: commentType,
       });
-      
-      // If it's a conclusion, also close the ticket
       if (commentType === 'solution') {
-        await api.put(`/tickets/${id}/status`, {
-          status: 'closed'
-        });
+        await api.put(`/tickets/${id}/status`, { status: 'closed' });
       }
-      
       setShowCommentModal(false);
       fetchTicketDetails();
       window.showNotification('success', 'Comentário adicionado com sucesso');
     } catch (error) {
-      console.error('Erro ao adicionar comentário:', error);
       window.showNotification('error', 'Erro ao adicionar comentário');
     } finally {
       setActionLoading(false);
@@ -106,13 +239,12 @@ export default function TicketDetailPage() {
       await api.post(`/tickets/${id}/comments`, {
         message: formData.message,
         comment_type: 'task',
-        time_spent: formData.time_spent ? parseInt(formData.time_spent) : undefined
+        time_spent: formData.time_spent ? parseInt(formData.time_spent) : undefined,
       });
       setShowTaskModal(false);
       fetchTicketDetails();
       window.showNotification('success', 'Tarefa adicionada com sucesso');
     } catch (error) {
-      console.error('Erro ao adicionar tarefa:', error);
       window.showNotification('error', 'Erro ao adicionar tarefa');
     } finally {
       setActionLoading(false);
@@ -122,14 +254,11 @@ export default function TicketDetailPage() {
   const handleStatusChange = async (formData) => {
     try {
       setActionLoading(true);
-      await api.put(`/tickets/${id}/status`, {
-        status: formData.status
-      });
+      await api.put(`/tickets/${id}/status`, { status: formData.status });
       setShowStatusModal(false);
       fetchTicketDetails();
       window.showNotification('success', 'Status atualizado com sucesso');
     } catch (error) {
-      console.error('Erro ao atualizar status:', error);
       window.showNotification('error', 'Erro ao atualizar status');
     } finally {
       setActionLoading(false);
@@ -139,13 +268,10 @@ export default function TicketDetailPage() {
   const handleAssignToMe = async () => {
     try {
       setActionLoading(true);
-      await api.put(`/tickets/${id}/assign`, {
-        assigned_to: currentUser.id
-      });
+      await api.put(`/tickets/${id}/assign`, { assigned_to: currentUser.id });
       fetchTicketDetails();
       window.showNotification('success', 'Ticket atribuído com sucesso');
     } catch (error) {
-      console.error('Erro ao atribuir ticket:', error);
       window.showNotification('error', 'Erro ao atribuir ticket');
     } finally {
       setActionLoading(false);
@@ -155,14 +281,11 @@ export default function TicketDetailPage() {
   const handleAssignTicket = async (formData) => {
     try {
       setActionLoading(true);
-      await api.put(`/tickets/${id}/assign`, {
-        assigned_to: formData.admin_id
-      });
+      await api.put(`/tickets/${id}/assign`, { assigned_to: formData.admin_id });
       setShowAssignModal(false);
       fetchTicketDetails();
       window.showNotification('success', 'Ticket atribuído com sucesso');
     } catch (error) {
-      console.error('Erro ao atribuir ticket:', error);
       window.showNotification('error', 'Erro ao atribuir ticket');
     } finally {
       setActionLoading(false);
@@ -174,13 +297,12 @@ export default function TicketDetailPage() {
       setActionLoading(true);
       await api.post(`/tickets/${id}/equipment`, {
         equipment_id: parseInt(formData.equipment_id),
-        notes: formData.notes || ''
+        notes: formData.notes || '',
       });
       setShowEquipmentModal(false);
       fetchTicketDetails();
       window.showNotification('success', 'Equipamento associado com sucesso');
     } catch (error) {
-      console.error('Erro ao associar equipamento:', error);
       window.showNotification('error', error.response?.data?.error || 'Erro ao associar equipamento');
     } finally {
       setActionLoading(false);
@@ -194,7 +316,6 @@ export default function TicketDetailPage() {
       fetchTicketDetails();
       window.showNotification('success', 'Equipamento removido com sucesso');
     } catch (error) {
-      console.error('Erro ao remover equipamento:', error);
       window.showNotification('error', 'Erro ao remover equipamento');
     }
   };
@@ -239,10 +360,11 @@ export default function TicketDetailPage() {
   };
 
   const totalTimeSpent = timeLogs.reduce((acc, log) => acc + (log.time_spent || 0), 0);
-
-  const tasks = comments.filter(c => c.comment_type === 'task');
-  const regularComments = comments.filter(c => c.comment_type !== 'task' && c.comment_type !== 'solution');
-  const solutions = comments.filter(c => c.comment_type === 'solution');
+  const tasks = comments.filter((c) => c.comment_type === 'task');
+  const regularComments = comments.filter((c) => c.comment_type !== 'task' && c.comment_type !== 'solution');
+  const solutions = comments.filter((c) => c.comment_type === 'solution');
+  const imageAttachments = attachments.filter((a) => isImage(a.file_type));
+  const otherAttachments = attachments.filter((a) => !isImage(a.file_type));
 
   if (loading) {
     return (
@@ -287,57 +409,75 @@ export default function TicketDetailPage() {
                 <button className="btn btn-secondary" onClick={() => setShowStatusModal(true)}>
                   <SyncIcon sx={{ fontSize: '1rem', mr: 0.5 }} /> Mudar Status
                 </button>
+                <button className="btn btn-secondary" onClick={() => navigate(`/tickets/${id}/history`)}>
+                  <HistoryIcon sx={{ fontSize: '1rem', mr: 0.5 }} /> Histórico
+                </button>
               </>
+            )}
+            {!isAdmin && (
+              <button className="btn btn-secondary" onClick={() => navigate(`/tickets/${id}/history`)}>
+                <HistoryIcon sx={{ fontSize: '1rem', mr: 0.5 }} /> Histórico
+              </button>
             )}
           </div>
         </div>
         <div className="detail-title">
           <h1>#{ticket.id.toString().padStart(4, '0')} - {ticket.title}</h1>
-          <p className="user-email">
-            Criado em {new Date(ticket.created_at).toLocaleDateString('pt-PT')}
-          </p>
+          <p className="user-email">Criado em {new Date(ticket.created_at).toLocaleDateString('pt-PT')}</p>
         </div>
       </div>
 
       <div className="ticket-detail-grid">
         <div className="ticket-detail-main">
-          {/* Description */}
+
+          {/* Descrição */}
           <div className="detail-card-box">
-            <div className="detail-card-title"><DescriptionIcon sx={{ fontSize: '1.2rem', mr: 0.5, verticalAlign: 'middle' }} /> Descrição</div>
-            <div className="detail-content">
-              <p style={{ color: '#ccc', lineHeight: '1.6' }}>{ticket.description}</p>
+            <div className="detail-card-title">
+              <DescriptionIcon sx={{ fontSize: '1.2rem', mr: 0.5, verticalAlign: 'middle' }} /> Descrição
             </div>
+            <p style={{ color: '#ccc', lineHeight: '1.6', margin: 0 }}>{ticket.description}</p>
           </div>
 
-          {/* Messages/Comments */}
+          {/* Mensagens */}
           <div className="detail-card-box">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <div className="detail-card-title" style={{ margin: 0 }}><ChatIcon sx={{ fontSize: '1.2rem', mr: 0.5, verticalAlign: 'middle' }} /> Mensagens ({regularComments.length})</div>
-              {ticket && ticket.status !== 'closed' && (
-                <button className="btn btn-primary" style={{ padding: '0.5rem 1rem' }} onClick={() => setShowCommentModal(true)}>
-                  <AddIcon sx={{ fontSize: '1rem', mr: 0.3 }} /> Adicionar
-                </button>
+              <div className="detail-card-title" style={{ margin: 0 }}>
+                <ChatIcon sx={{ fontSize: '1.2rem', mr: 0.5, verticalAlign: 'middle' }} /> Mensagens ({regularComments.length})
+              </div>
+              {ticket.status !== 'closed' && (
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <input type="file" ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileUpload} />
+                  <button
+                    className="btn btn-secondary"
+                    style={{ padding: '0.5rem 1rem' }}
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadingFile}
+                    title="Anexar ficheiro (máx. 50MB)"
+                  >
+                    <AttachFileIcon sx={{ fontSize: '1rem', mr: 0.3 }} />
+                    {uploadingFile ? 'A enviar...' : 'Anexar'}
+                  </button>
+                  <button className="btn btn-primary" style={{ padding: '0.5rem 1rem' }} onClick={() => setShowCommentModal(true)}>
+                    <AddIcon sx={{ fontSize: '1rem', mr: 0.3 }} /> Adicionar
+                  </button>
+                </div>
               )}
             </div>
             <div className="comments-list">
               {regularComments.length > 0 ? (
-                regularComments.map(comment => {
+                regularComments.map((comment) => {
                   const isMyMessage = comment.user_id === currentUser.id;
                   return (
                     <div key={comment.id} className={`comment-item ${isMyMessage ? 'comment-mine' : 'comment-other'}`}>
                       <div className="comment-header">
                         <div className="comment-author-info">
                           <strong style={{ color: isMyMessage ? '#3d6aff' : '#fff' }}>
-                            {isMyMessage ? 'Eu' : (comment.username || comment.name || 'Anónimo')}
+                            {isMyMessage ? 'Eu' : comment.username || 'Anónimo'}
                           </strong>
                           <span className="comment-date">{new Date(comment.created_at).toLocaleString('pt-PT')}</span>
                         </div>
                         {(comment.user_id === currentUser.id || isAdmin) && (
-                          <button 
-                            className="btn-icon-small" 
-                            onClick={() => handleDeleteComment(comment.id)}
-                            title="Eliminar"
-                          >
+                          <button className="btn-icon-small" onClick={() => handleDeleteComment(comment.id)} title="Eliminar">
                             <DeleteIcon sx={{ fontSize: '1rem' }} />
                           </button>
                         )}
@@ -352,27 +492,126 @@ export default function TicketDetailPage() {
             </div>
           </div>
 
-          {/* Solutions */}
+          {/* Anexos */}
+          <div className="detail-card-box">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <div className="detail-card-title" style={{ margin: 0 }}>
+                <AttachFileIcon sx={{ fontSize: '1.2rem', mr: 0.5, verticalAlign: 'middle' }} /> Anexos ({attachments.length})
+              </div>
+              {ticket.status !== 'closed' && (
+                <button
+                  className="btn btn-secondary"
+                  style={{ padding: '0.5rem 1rem' }}
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingFile}
+                >
+                  <AddIcon sx={{ fontSize: '1rem', mr: 0.3 }} /> {uploadingFile ? 'A enviar...' : 'Adicionar'}
+                </button>
+              )}
+            </div>
+
+            {/* Grid de imagens */}
+            {imageAttachments.length > 0 && (
+              <div className="attachments-images-grid">
+                {imageAttachments.map((att) => (
+                  <div key={att.id} className="attachment-image-wrapper">
+                    {imageBlobUrls[att.id] ? (
+                      <img
+                        src={imageBlobUrls[att.id]}
+                        alt={att.filename}
+                        className="attachment-image-preview"
+                        onClick={() => handleOpenInline(att)}
+                      />
+                    ) : (
+                      <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#1c1e1e' }}>
+                        <div className="spinner" style={{ width: 24, height: 24, borderWidth: 3 }}></div>
+                      </div>
+                    )}
+                    <div className="attachment-image-overlay">
+                      <span className="attachment-image-name">{att.filename}</span>
+                      <div style={{ display: 'flex', gap: '0.3rem' }}>
+                        <button className="btn-icon-small" title="Abrir" onClick={() => handleOpenInline(att)}>
+                          <OpenInNewIcon sx={{ fontSize: '1rem', color: '#fff' }} />
+                        </button>
+                        <button className="btn-icon-small" title="Descarregar" onClick={() => handleDownloadAttachment(att)}>
+                          <DownloadIcon sx={{ fontSize: '1rem', color: '#3d6aff' }} />
+                        </button>
+                        {(att.user_id === currentUser.id || isAdmin) && (
+                          <button className="btn-icon-small" title="Eliminar" onClick={() => handleDeleteAttachment(att.id)}>
+                            <DeleteIcon sx={{ fontSize: '1rem' }} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Lista de outros ficheiros (PDFs, docs, etc.) */}
+            {otherAttachments.length > 0 && (
+              <div className="attachments-list" style={{ marginTop: imageAttachments.length > 0 ? '1rem' : '0' }}>
+                {otherAttachments.map((att) => (
+                  <div key={att.id} className="attachment-item">
+                    <div className="attachment-icon">{getFileIcon(att.file_type)}</div>
+                    <div className="attachment-info">
+                      <span className="attachment-name">{att.filename}</span>
+                      <span className="attachment-meta">
+                        {formatBytes(att.file_size)} &bull; {att.username || 'Desconhecido'} &bull;{' '}
+                        {new Date(att.created_at).toLocaleDateString('pt-PT')}
+                      </span>
+                    </div>
+                    <div className="attachment-actions">
+                      {isPdf(att.file_type) && (
+                        <button className="btn-icon-small" title="Abrir PDF" onClick={() => handleOpenInline(att)}>
+                          <OpenInNewIcon sx={{ fontSize: '1.1rem', color: '#ff5722' }} />
+                        </button>
+                      )}
+                      <button className="btn-icon-small" title="Descarregar" onClick={() => handleDownloadAttachment(att)}>
+                        <DownloadIcon sx={{ fontSize: '1.1rem', color: '#3d6aff' }} />
+                      </button>
+                      {(att.user_id === currentUser.id || isAdmin) && (
+                        <button className="btn-icon-small" title="Eliminar" onClick={() => handleDeleteAttachment(att.id)}>
+                          <DeleteIcon sx={{ fontSize: '1rem' }} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {attachments.length === 0 && (
+              <p style={{ color: '#666', margin: 0, textAlign: 'center', padding: '1rem' }}>Sem anexos</p>
+            )}
+            <p className="attachment-limit-hint">Máximo 50MB por ficheiro</p>
+          </div>
+
+          {/* Solução */}
           {solutions.length > 0 && (
             <div className="detail-card-box" style={{ borderLeft: '4px solid #4caf50' }}>
-              <div className="detail-card-title"><CheckCircleIcon sx={{ fontSize: '1.2rem', mr: 0.5, verticalAlign: 'middle', color: '#4caf50' }} /> Solução</div>
-              {solutions.map(sol => (
+              <div className="detail-card-title">
+                <CheckCircleIcon sx={{ fontSize: '1.2rem', mr: 0.5, verticalAlign: 'middle', color: '#4caf50' }} /> Solução
+              </div>
+              {solutions.map((sol) => (
                 <div key={sol.id} style={{ marginBottom: '1rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                     <strong style={{ color: '#4caf50' }}>{sol.username || 'IT'}</strong>
                     <span style={{ color: '#666', fontSize: '0.85rem' }}>{new Date(sol.created_at).toLocaleString('pt-PT')}</span>
                   </div>
-                  <p style={{ color: '#ccc', lineHeight: '1.6' }}>{sol.message}</p>
+                  <p style={{ color: '#ccc', lineHeight: '1.6', margin: 0 }}>{sol.message}</p>
                 </div>
               ))}
             </div>
           )}
 
-          {/* Tasks */}
+          {/* Tarefas */}
           <div className="detail-card-box">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <div className="detail-card-title" style={{ margin: 0 }}><TaskAltIcon sx={{ fontSize: '1.2rem', mr: 0.5, verticalAlign: 'middle' }} /> Tarefas ({tasks.length})</div>
-              {isAdmin && ticket && ticket.status !== 'closed' && (
+              <div className="detail-card-title" style={{ margin: 0 }}>
+                <TaskAltIcon sx={{ fontSize: '1.2rem', mr: 0.5, verticalAlign: 'middle' }} /> Tarefas ({tasks.length})
+              </div>
+              {isAdmin && ticket.status !== 'closed' && (
                 <button className="btn btn-primary" style={{ padding: '0.5rem 1rem' }} onClick={() => setShowTaskModal(true)}>
                   <AddIcon sx={{ fontSize: '1rem', mr: 0.3 }} /> Adicionar
                 </button>
@@ -380,7 +619,7 @@ export default function TicketDetailPage() {
             </div>
             <div className="tasks-list">
               {tasks.length > 0 ? (
-                tasks.map(task => (
+                tasks.map((task) => (
                   <div key={task.id} className="task-item">
                     <div className="task-content">
                       <TaskAltIcon sx={{ fontSize: '1.1rem', color: '#3d6aff', flexShrink: 0, mt: '2px' }} />
@@ -398,11 +637,7 @@ export default function TicketDetailPage() {
                       </div>
                     </div>
                     {isAdmin && (
-                      <button 
-                        className="btn-icon-small" 
-                        onClick={() => handleDeleteComment(task.id)}
-                        title="Eliminar"
-                      >
+                      <button className="btn-icon-small" onClick={() => handleDeleteComment(task.id)} title="Eliminar">
                         <DeleteIcon sx={{ fontSize: '1rem' }} />
                       </button>
                     )}
@@ -417,18 +652,16 @@ export default function TicketDetailPage() {
 
         {/* Sidebar */}
         <div className="ticket-detail-sidebar">
-          {/* Status and Priority */}
+
           <div className="sidebar-card">
             <div className="sidebar-card-title">Status</div>
             <StatusBadge status={ticket.status} />
-            
             <div className="info-item" style={{ marginTop: '1rem' }}>
               <div className="sidebar-card-title">Prioridade</div>
               <PriorityBadge priority={ticket.priority} />
             </div>
           </div>
 
-          {/* Creator Info */}
           <div className="sidebar-card">
             <div className="sidebar-card-title">Criado por</div>
             <div className="info-item">
@@ -444,14 +677,11 @@ export default function TicketDetailPage() {
                 </span>
               )}
               {ticket.creator_email && (
-                <div className="info-value" style={{ fontSize: '0.85rem', color: '#666', marginTop: '0.25rem' }}>
-                  {ticket.creator_email}
-                </div>
+                <div style={{ fontSize: '0.85rem', color: '#666', marginTop: '0.25rem' }}>{ticket.creator_email}</div>
               )}
             </div>
           </div>
 
-          {/* Assigned IT */}
           <div className="sidebar-card">
             <div className="sidebar-card-title">IT Atribuído</div>
             <div className="info-item">
@@ -473,9 +703,9 @@ export default function TicketDetailPage() {
                     <WarningAmberIcon sx={{ fontSize: '1rem', mr: 0.3, verticalAlign: 'middle' }} /> Não atribuído
                   </span>
                   {isAdmin && (
-                    <button 
-                      className="btn btn-primary" 
-                      style={{ padding: '0.35rem 0.75rem', fontSize: '0.85rem' }} 
+                    <button
+                      className="btn btn-primary"
+                      style={{ padding: '0.35rem 0.75rem', fontSize: '0.85rem' }}
                       onClick={handleAssignToMe}
                       disabled={actionLoading}
                     >
@@ -487,7 +717,6 @@ export default function TicketDetailPage() {
             </div>
           </div>
 
-          {/* Info */}
           <div className="sidebar-card">
             <div className="sidebar-card-title">Informações</div>
             <div className="info-item">
@@ -518,7 +747,6 @@ export default function TicketDetailPage() {
             </div>
           </div>
 
-          {/* Equipment in sidebar */}
           <div className="sidebar-card">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div className="sidebar-card-title" style={{ margin: 0 }}>Equipamento ({ticketEquipment.length})</div>
@@ -546,7 +774,7 @@ export default function TicketDetailPage() {
             )}
             {ticketEquipment.length > 0 ? (
               <div style={{ marginTop: '0.5rem' }}>
-                {ticketEquipment.map(eq => (
+                {ticketEquipment.map((eq) => (
                   <div key={eq.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.35rem 0', borderBottom: '1px solid #333' }}>
                     <div>
                       <Link to={`/equipment/${eq.equipment_id}`} className="clickable-link" style={{ fontSize: '0.85rem' }}>
@@ -563,14 +791,16 @@ export default function TicketDetailPage() {
                   </div>
                 ))}
               </div>
-            ) : !ticket.primary_equipment_id && (
-              <p style={{ color: '#666', margin: '0.5rem 0 0', fontSize: '0.85rem' }}>Sem equipamento</p>
+            ) : (
+              !ticket.primary_equipment_id && (
+                <p style={{ color: '#666', margin: '0.5rem 0 0', fontSize: '0.85rem' }}>Sem equipamento</p>
+              )
             )}
           </div>
         </div>
       </div>
 
-      {/* Modals */}
+      {/* Modais */}
       <FormModal
         isOpen={showCommentModal}
         title="Adicionar Mensagem"
@@ -582,17 +812,17 @@ export default function TicketDetailPage() {
             required: true,
             options: [
               { value: 'comment', label: 'Mensagem' },
-              { value: 'solution', label: 'Conclusão' }
+              { value: 'solution', label: 'Conclusão' },
             ],
-            defaultValue: 'comment'
+            defaultValue: 'comment',
           },
           {
             name: 'message',
             label: 'Mensagem',
             type: 'textarea',
             required: true,
-            placeholder: 'Escreve a tua mensagem...'
-          }
+            placeholder: 'Escreve a tua mensagem...',
+          },
         ]}
         onSubmit={handleAddComment}
         onClose={() => setShowCommentModal(false)}
@@ -608,14 +838,14 @@ export default function TicketDetailPage() {
             label: 'Descrição da Tarefa',
             type: 'textarea',
             required: true,
-            placeholder: 'Descreve a tarefa...'
+            placeholder: 'Descreve a tarefa...',
           },
           {
             name: 'time_spent',
             label: 'Tempo gasto (minutos)',
             type: 'number',
-            placeholder: 'Ex: 30 (opcional)'
-          }
+            placeholder: 'Ex: 30 (opcional)',
+          },
         ]}
         onSubmit={handleAddTask}
         onClose={() => setShowTaskModal(false)}
@@ -636,9 +866,9 @@ export default function TicketDetailPage() {
               { value: 'in_progress', label: 'Em Progresso' },
               { value: 'waiting', label: 'Aguardando' },
               { value: 'resolved', label: 'Resolvido' },
-              { value: 'closed', label: 'Fechado' }
-            ]
-          }
+              { value: 'closed', label: 'Fechado' },
+            ],
+          },
         ]}
         onSubmit={handleStatusChange}
         onClose={() => setShowStatusModal(false)}
@@ -654,8 +884,8 @@ export default function TicketDetailPage() {
             label: 'Admin',
             type: 'select',
             required: true,
-            options: admins.map(a => ({ value: a.id, label: a.name || a.username }))
-          }
+            options: admins.map((a) => ({ value: a.id, label: a.name || a.username })),
+          },
         ]}
         onSubmit={handleAssignTicket}
         onClose={() => setShowAssignModal(false)}
@@ -671,14 +901,14 @@ export default function TicketDetailPage() {
             label: 'Equipamento',
             type: 'select',
             required: true,
-            options: allEquipment.map(e => ({ value: e.id, label: `${e.name} (${e.type})` }))
+            options: allEquipment.map((e) => ({ value: e.id, label: `${e.name} (${e.type})` })),
           },
           {
             name: 'notes',
             label: 'Notas',
             type: 'text',
-            placeholder: 'Notas sobre o equipamento (opcional)'
-          }
+            placeholder: 'Notas sobre o equipamento (opcional)',
+          },
         ]}
         onSubmit={handleAddEquipment}
         onClose={() => setShowEquipmentModal(false)}

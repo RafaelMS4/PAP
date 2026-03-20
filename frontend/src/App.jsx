@@ -8,6 +8,7 @@ import MyTicketsPage from './pages/MyTicketsPage'
 import AdminQueuePage from './pages/AdminQueuePage'
 import ClosedTicketsPage from './pages/ClosedTicketsPage'
 import TicketDetailPage from './pages/TicketDetailPage'
+import TicketHistoryPage from './pages/TicketHistoryPage'
 import UsersPage from './pages/UsersPage'
 import UserDetailPage from './pages/UserDetailPage'
 import EquipmentPage from './pages/EquipmentPage'
@@ -69,6 +70,7 @@ export default function App() {
           <Route path="/my-tickets" element={<AdminRoute><MyTicketsPage /></AdminRoute>} />
           <Route path="/tickets" element={<AdminRoute><TicketsPage /></AdminRoute>} />
           <Route path="/tickets/:id" element={<TicketDetailPage />} />
+          <Route path="/tickets/:id/history" element={<TicketHistoryPage />} />
           <Route path="/admin/queue" element={<AdminRoute><AdminQueuePage /></AdminRoute>} />
           <Route path="/admin/closed-tickets" element={<AdminRoute><ClosedTicketsPage /></AdminRoute>} />
           <Route path="/users" element={<AdminRoute><UsersPage /></AdminRoute>} />

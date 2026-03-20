@@ -879,8 +879,7 @@ export const getTicketEquipment = async (req, res) => {
     }
 
     const equipment = await dbAll(
-      `SELECT te.*, e.name as equipment_name, e.type as equipment_type, 
-              e.serialNumber, e.assignedTo, u.username
+      `SELECT te.*, e.name as equipment_name, e.type as equipment_type, u.username
        FROM ticket_equipment te
        LEFT JOIN equipment e ON te.equipment_id = e.id
        LEFT JOIN users u ON te.added_by = u.id
@@ -1112,28 +1111,29 @@ export const updateTicketStatus = async (req, res) => {
 export const downloadAttachment = async (req, res) => {
   try {
     const { attachmentId } = req.params;
-    const attachment = await dbGet('SELECT * FROM attachments WHERE id = ?', [attachmentId]);
+    const { inline } = req.query; // ?inline=true para abrir no browser
+    
+    const attachment = await dbGet('SELECT * FROM ticket_attachments WHERE id = ?', [attachmentId]);
 
     if (!attachment) {
       return res.status(404).json({ error: 'Anexo não encontrado' });
     }
 
-    // Check access - user can download if they created the ticket or are admin
     const ticket = await dbGet('SELECT * FROM tickets WHERE id = ?', [attachment.ticket_id]);
-    
+
     if (req.userRole !== 'admin' && ticket.user_id !== req.userId && ticket.assigned_to !== req.userId) {
       return res.status(403).json({ error: 'Acesso negado' });
     }
 
-    const filePath = path.join(UPLOAD_DIR, attachment.file_path);
-
-    // Check if file exists
-    if (!fs.existsSync(filePath)) {
+    if (!fs.existsSync(attachment.filepath)) {
       return res.status(404).json({ error: 'Ficheiro não encontrado no servidor' });
     }
 
-    // Send file
-    res.download(filePath, attachment.file_name);
+    // Se inline=true, abrir no browser; senão, forçar download
+    const disposition = inline === 'true' ? 'inline' : `attachment; filename="${attachment.filename}"`;
+    res.setHeader('Content-Disposition', disposition);
+    res.setHeader('Content-Type', attachment.file_type || 'application/octet-stream');
+    fs.createReadStream(attachment.filepath).pipe(res);
   } catch (error) {
     console.error('Download attachment error:', error);
     res.status(500).json({ error: 'Erro ao descarregar anexo' });
