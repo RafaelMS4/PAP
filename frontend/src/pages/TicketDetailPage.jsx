@@ -529,7 +529,14 @@ export default function TicketDetailPage() {
                     )}
                     <div className="attachment-image-overlay">
                       <span className="attachment-image-name">{att.filename}</span>
-                      <div style={{ display: 'flex', gap: '0.3rem' }}>
+
+                      <span style={{ fontSize: '0.72rem', color: '#ccc', display: 'block', marginTop: '0.1rem' }}>
+                        <PersonIcon sx={{ fontSize: '0.75rem', verticalAlign: 'middle', mr: 0.3 }} />
+                        {att.user_id === currentUser.id ? 'Eu' : att.username || 'Desconhecido'} •{' '}
+                        {new Date(att.created_at).toLocaleDateString('pt-PT')}
+                      </span>
+
+                      <div style={{ display: 'flex', gap: '0.3rem', marginTop: '0.3rem' }}>
                         <button className="btn-icon-small" title="Abrir" onClick={() => handleOpenInline(att)}>
                           <OpenInNewIcon sx={{ fontSize: '1rem', color: '#fff' }} />
                         </button>
@@ -557,7 +564,9 @@ export default function TicketDetailPage() {
                     <div className="attachment-info">
                       <span className="attachment-name">{att.filename}</span>
                       <span className="attachment-meta">
-                        {formatBytes(att.file_size)} &bull; {att.username || 'Desconhecido'} &bull;{' '}
+                        {formatBytes(att.file_size)} &bull;{' '}
+                        <PersonIcon sx={{ fontSize: '0.75rem', verticalAlign: 'middle', mr: 0.2 }} />
+                        {att.user_id === currentUser.id ? 'Eu' : att.username || 'Desconhecido'} &bull;{' '}
                         {new Date(att.created_at).toLocaleDateString('pt-PT')}
                       </span>
                     </div>

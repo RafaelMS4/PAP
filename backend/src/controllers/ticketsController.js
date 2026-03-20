@@ -375,6 +375,25 @@ export const addComment = async (req, res) => {
       comment.time_spent = parseInt(time_spent);
     }
 
+    res.status(201).json(      // Record time log in history
+      await dbRun(
+        'INSERT INTO ticket_history (ticket_id, user_id, action, field_changed, old_value, new_value) VALUES (?, ?, ?, ?, ?, ?)',
+        [id, userId, 'time_spent_added', 'time_spent', '', `${time_spent} minutos`]
+      );
+    }
+
+    const comment = await dbGet(
+      `SELECT tc.*, u.username FROM ticket_comments tc
+       LEFT JOIN users u ON tc.user_id = u.id
+       WHERE tc.id = ?`,
+      [result.lastID]
+    );
+
+    // Attach time_spent to the response if provided
+    if (comment && time_spent) {
+      comment.time_spent = parseInt(time_spent);
+    }
+
     res.status(201).json({ 
       message: 'Comentário adicionado com sucesso',
       comment 
@@ -439,6 +458,12 @@ export const updateComment = async (req, res) => {
       [message, commentId]
     );
 
+    // Record update in history
+    await dbRun(
+      'INSERT INTO ticket_history (ticket_id, user_id, action, field_changed, old_value, new_value) VALUES (?, ?, ?, ?, ?, ?)',
+      [id, userId, 'comment_updated', 'comment_type', comment.comment_type, comment.comment_type]
+    );
+
     const updatedComment = await dbGet(
       `SELECT tc.*, u.username FROM ticket_comments tc
        LEFT JOIN users u ON tc.user_id = u.id
@@ -473,6 +498,12 @@ export const deleteComment = async (req, res) => {
     }
 
     await dbRun('DELETE FROM ticket_comments WHERE id = ?', [commentId]);
+
+    // Record deletion in history
+    await dbRun(
+      'INSERT INTO ticket_history (ticket_id, user_id, action, field_changed, old_value, new_value) VALUES (?, ?, ?, ?, ?, ?)',
+      [id, req.userId || userId, 'comment_deleted', 'comment_type', comment.comment_type, '']
+    );
 
     res.json({ message: 'Comentário eliminado com sucesso' });
   } catch (error) {
@@ -654,6 +685,20 @@ export const updateTimeLog = async (req, res) => {
     const sql = `UPDATE ticket_time_logs SET ${updates.join(', ')} WHERE id = ?`;
     await dbRun(sql, values);
 
+    // Record in history
+    if (time_spent !== undefined) {
+      await dbRun(
+        'INSERT INTO ticket_history (ticket_id, user_id, action, field_changed, old_value, new_value) VALUES (?, ?, ?, ?, ?, ?)',
+        [id, userId, 'time_log_updated', 'time_spent', `${timeLog.time_spent}`, `${time_spent} minutos`]
+      );
+    }
+    if (description !== undefined) {
+      await dbRun(
+        'INSERT INTO ticket_history (ticket_id, user_id, action, field_changed, old_value, new_value) VALUES (?, ?, ?, ?, ?, ?)',
+        [id, userId, 'time_log_updated', 'description', timeLog.description || '', description || '']
+      );
+    }
+
     const updatedLog = await dbGet(
       `SELECT ttl.*, u.username FROM ticket_time_logs ttl
        LEFT JOIN users u ON ttl.user_id = u.id
@@ -684,6 +729,12 @@ export const deleteTimeLog = async (req, res) => {
     }
 
     await dbRun('DELETE FROM ticket_time_logs WHERE id = ?', [logId]);
+
+    // Record in history
+    await dbRun(
+      'INSERT INTO ticket_history (ticket_id, user_id, action, field_changed, old_value, new_value) VALUES (?, ?, ?, ?, ?, ?)',
+      [id, req.userId, 'time_log_deleted', 'time_spent', `${timeLog.time_spent} minutos${timeLog.description ? ': ' + timeLog.description : ''}`, '']
+    );
 
     res.json({ message: 'Registro de tempo eliminado com sucesso' });
   } catch (error) {
@@ -737,6 +788,12 @@ export const addAttachment = async (req, res) => {
       `INSERT INTO ticket_attachments (ticket_id, user_id, filename, filepath, file_type, file_size)
        VALUES (?, ?, ?, ?, ?, ?)`,
       [id, userId, filename, filepath, fileType, fileSize]
+    );
+
+    // Record in history
+    await dbRun(
+      'INSERT INTO ticket_history (ticket_id, user_id, action, field_changed, old_value, new_value) VALUES (?, ?, ?, ?, ?, ?)',
+      [id, userId, 'attachment_added', 'filename', '', filename]
     );
 
     const attachment = await dbGet(
@@ -806,6 +863,12 @@ export const deleteAttachment = async (req, res) => {
 
     await dbRun('DELETE FROM ticket_attachments WHERE id = ?', [attachmentId]);
 
+    // Record in history
+    await dbRun(
+      'INSERT INTO ticket_history (ticket_id, user_id, action, field_changed, old_value, new_value) VALUES (?, ?, ?, ?, ?, ?)',
+      [id, req.userId || userId, 'attachment_removed', 'filename', attachment.filename, '']
+    );
+
     res.json({ message: 'Anexo eliminado com sucesso' });
   } catch (error) {
     console.error('Erro ao eliminar anexo:', error);
@@ -848,6 +911,12 @@ export const addEquipmentToTicket = async (req, res) => {
       `INSERT INTO ticket_equipment (ticket_id, equipment_id, added_by, notes)
        VALUES (?, ?, ?, ?)`,
       [id, equipment_id, userId, notes || null]
+    );
+
+    // Record in history
+    await dbRun(
+      'INSERT INTO ticket_history (ticket_id, user_id, action, field_changed, old_value, new_value) VALUES (?, ?, ?, ?, ?, ?)',
+      [id, userId, 'equipment_added', 'equipment_id', '', `${equipment.name} (${equipment.type})`]
     );
 
     const association = await dbGet(
@@ -907,39 +976,17 @@ export const removeEquipmentFromTicket = async (req, res) => {
       return res.status(404).json({ error: 'Associação não encontrada' });
     }
 
+    // Get equipment details before deletion
+    const equipment = await dbGet('SELECT * FROM equipment WHERE id = ?', [association.equipment_id]);
+
     await dbRun('DELETE FROM ticket_equipment WHERE id = ?', [equipmentId]);
 
-    res.json({ message: 'Equipamento removido do ticket com sucesso' });
-  } catch (error) {
-    console.error('Erro ao remover equipamento do ticket:', error);
-    res.status(500).json({ error: 'Erro ao remover equipamento do ticket' });
-  }
-};
-
-export const getMyTickets = async (req, res) => {
-  try {
-    const { status, priority, limit = 20, offset = 0, page, title } = req.query;
-    const userId = req.userId;
-    const userRole = req.userRole;
-    const limitNum = Math.min(parseInt(limit) || 20, 100);
-    let offsetNum = parseInt(offset) || 0;
-
-    // Handle page parameter
-    if (page && !offset) {
-      offsetNum = (parseInt(page) - 1) * limitNum;
-    }
-
-    const whereClauses = ['t.assigned_to = ?'];
-    const params = [userId];
-
-    if (status) {
-      whereClauses.push('t.status = ?');
-      params.push(status);
-    }
-
-    if (priority) {
-      whereClauses.push('t.priority = ?');
-      params.push(priority);
+    // Record in history
+    await dbRun(
+      'INSERT INTO ticket_history (ticket_id, user_id, action, field_changed, old_value, new_value) VALUES (?, ?, ?, ?, ?, ?)',
+      [id, req.userId, 'equipment_removed', 'equipment_id', `${equipment.name} (${equipment.type})`, '']
+    );
+params.push(priority);
     }
 
     if (title) {
