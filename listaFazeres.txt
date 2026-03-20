@@ -1,9 +1,0 @@
-Ok implementa na minha pap tudo de paps já existe apis para isso mas pode nao dar
-
-Aplicar ticket com a api close agora so muda o satus acho
-
-Melhores historicos em tudooo
-
-Listar anexos nos tickets
-
-Nao esta a dar para atribuir equipmanetos aos tickets, faz isso tambem melhor, uma pesquisa melhor etc em empresas com varios equipmanetos assim ia ser dificil

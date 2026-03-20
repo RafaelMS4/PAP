@@ -1,2 +1,0 @@
-Primaria: #1c1e1e
-Secundaria: rgb(61, 106, 255)
