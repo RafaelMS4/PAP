@@ -893,7 +893,6 @@ export default function TicketDetailPage() {
               { value: 'in_progress', label: 'Em Progresso' },
               { value: 'waiting', label: 'Aguardando' },
               { value: 'resolved', label: 'Resolvido' },
-              { value: 'closed', label: 'Fechado' },
             ],
           },
         ]}
