@@ -226,10 +226,31 @@ export const updateTicket = async (req, res) => {
       );
     }
 
+    if (category !== undefined && category !== ticket.category) {
+      await dbRun(
+        'INSERT INTO ticket_history (ticket_id, user_id, action, field_changed, old_value, new_value) VALUES (?, ?, ?, ?, ?, ?)',
+        [id, userId, 'category_changed', 'category', ticket.category || '', category || '']
+      );
+    }
+
+    if (description !== undefined && description !== ticket.description) {
+      await dbRun(
+        'INSERT INTO ticket_history (ticket_id, user_id, action, field_changed, old_value, new_value) VALUES (?, ?, ?, ?, ?, ?)',
+        [id, userId, 'description_changed', 'description', ticket.description || '', description || '']
+      );
+    }
+
     if (assigned_to !== undefined && assigned_to !== ticket.assigned_to) {
       await dbRun(
         'INSERT INTO ticket_history (ticket_id, user_id, action, field_changed, old_value, new_value) VALUES (?, ?, ?, ?, ?, ?)',
         [id, userId, 'assignment_changed', 'assigned_to', ticket.assigned_to || 'unassigned', assigned_to]
+      );
+    }
+
+    if (primary_equipment_id !== undefined && primary_equipment_id !== ticket.primary_equipment_id) {
+      await dbRun(
+        'INSERT INTO ticket_history (ticket_id, user_id, action, field_changed, old_value, new_value) VALUES (?, ?, ?, ?, ?, ?)',
+        [id, userId, 'primary_equipment_changed', 'primary_equipment_id', ticket.primary_equipment_id || '', primary_equipment_id || '']
       );
     }
 
@@ -346,36 +367,33 @@ export const addComment = async (req, res) => {
       [id, userId, comment_type, message, is_internal ? 1 : 0]
     );
 
+    // Record history for comment addition
+    await dbRun(
+      'INSERT INTO ticket_history (ticket_id, user_id, action, field_changed, old_value, new_value) VALUES (?, ?, ?, ?, ?, ?)',
+      [id, userId, `comment_${comment_type}_added`, 'comment_type', '', comment_type]
+    );
+
     // If it's a solution, close the ticket
     if (comment_type === 'solution') {
       await dbRun(
         'UPDATE tickets SET status = ?, resolved_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
         ['closed', id]
       );
+      // Record status change in history
+      await dbRun(
+        'INSERT INTO ticket_history (ticket_id, user_id, action, field_changed, old_value, new_value) VALUES (?, ?, ?, ?, ?, ?)',
+        [id, userId, 'status_changed', 'status', ticket.status, 'closed']
+      );
     }
 
-    // If task has time_spent, create a time log entry
+    // If task has time_spent, create a time log entry and record in history
     if (comment_type === 'task' && time_spent && parseInt(time_spent) > 0) {
       await dbRun(
         `INSERT INTO ticket_time_logs (ticket_id, user_id, time_spent, description)
          VALUES (?, ?, ?, ?)`,
         [id, userId, parseInt(time_spent), message]
       );
-    }
-
-    const comment = await dbGet(
-      `SELECT tc.*, u.username FROM ticket_comments tc
-       LEFT JOIN users u ON tc.user_id = u.id
-       WHERE tc.id = ?`,
-      [result.lastID]
-    );
-
-    // Attach time_spent to the response if provided
-    if (comment && time_spent) {
-      comment.time_spent = parseInt(time_spent);
-    }
-
-    res.status(201).json(      // Record time log in history
+      // Record time log in history
       await dbRun(
         'INSERT INTO ticket_history (ticket_id, user_id, action, field_changed, old_value, new_value) VALUES (?, ?, ?, ?, ?, ?)',
         [id, userId, 'time_spent_added', 'time_spent', '', `${time_spent} minutos`]
@@ -986,7 +1004,38 @@ export const removeEquipmentFromTicket = async (req, res) => {
       'INSERT INTO ticket_history (ticket_id, user_id, action, field_changed, old_value, new_value) VALUES (?, ?, ?, ?, ?, ?)',
       [id, req.userId, 'equipment_removed', 'equipment_id', `${equipment.name} (${equipment.type})`, '']
     );
-params.push(priority);
+
+    res.json({ message: 'Equipamento removido do ticket com sucesso' });
+  } catch (error) {
+    console.error('Erro ao remover equipamento do ticket:', error);
+    res.status(500).json({ error: 'Erro ao remover equipamento do ticket' });
+  }
+};
+
+export const getMyTickets = async (req, res) => {
+  try {
+    const { status, priority, limit = 20, offset = 0, page, title } = req.query;
+    const userId = req.userId;
+    const userRole = req.userRole;
+    const limitNum = Math.min(parseInt(limit) || 20, 100);
+    let offsetNum = parseInt(offset) || 0;
+
+    // Handle page parameter
+    if (page && !offset) {
+      offsetNum = (parseInt(page) - 1) * limitNum;
+    }
+
+    const whereClauses = ['t.assigned_to = ?'];
+    const params = [userId];
+
+    if (status) {
+      whereClauses.push('t.status = ?');
+      params.push(status);
+    }
+
+    if (priority) {
+      whereClauses.push('t.priority = ?');
+      params.push(priority);
     }
 
     if (title) {

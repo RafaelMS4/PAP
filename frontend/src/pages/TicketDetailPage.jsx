@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import api from '../api';
 import { StatusBadge, PriorityBadge } from '../components/Badges';
 import FormModal from '../components/FormModal';
+import { ConfirmModal } from '../components/Modal';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import PersonIcon from '@mui/icons-material/Person';
@@ -73,6 +74,12 @@ export default function TicketDetailPage() {
   const [uploadingFile, setUploadingFile] = useState(false);
   const fileInputRef = useRef(null);
   const blobUrlsRef = useRef({});
+
+  const [confirmModal, setConfirmModal] = useState({ open: false, title: '', message: '', onConfirm: null, isDangerous: false });
+  const openConfirm = (title, message, onConfirm, isDangerous = true) => {
+    setConfirmModal({ open: true, title, message, onConfirm, isDangerous });
+  };
+  const closeConfirm = () => setConfirmModal({ open: false, title: '', message: '', onConfirm: null, isDangerous: false });
 
   const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
   const isAdmin = currentUser.role === 'admin';
@@ -191,41 +198,44 @@ export default function TicketDetailPage() {
     }
   };
 
-  const handleDeleteAttachment = async (attachmentId) => {
-    if (!confirm('Eliminar este anexo?')) return;
-    try {
-      await api.delete(`/tickets/${id}/attachments/${attachmentId}`);
-      // Limpar blob URL se existir
-      if (blobUrlsRef.current[attachmentId]) {
-        window.URL.revokeObjectURL(blobUrlsRef.current[attachmentId]);
-        delete blobUrlsRef.current[attachmentId];
-        setImageBlobUrls((prev) => {
-          const updated = { ...prev };
-          delete updated[attachmentId];
-          return updated;
-        });
+  const handleDeleteAttachment = (attachmentId) => {
+    openConfirm(
+      'Eliminar Anexo',
+      'Tens a certeza que queres eliminar este anexo?',
+      async () => {
+        closeConfirm();
+        try {
+          await api.delete(`/tickets/${id}/attachments/${attachmentId}`);
+          if (blobUrlsRef.current[attachmentId]) {
+            window.URL.revokeObjectURL(blobUrlsRef.current[attachmentId]);
+            delete blobUrlsRef.current[attachmentId];
+            setImageBlobUrls((prev) => { const u = { ...prev }; delete u[attachmentId]; return u; });
+          }
+          window.showNotification('success', 'Anexo eliminado com sucesso');
+          fetchTicketDetails();
+        } catch { window.showNotification('error', 'Erro ao eliminar anexo'); }
       }
-      window.showNotification('success', 'Anexo eliminado com sucesso');
-      fetchTicketDetails();
-    } catch (error) {
-      window.showNotification('error', 'Erro ao eliminar anexo');
-    }
+    );
   };
 
   const handleAddComment = async (formData) => {
     try {
       setActionLoading(true);
       const commentType = formData.comment_type || 'comment';
-      await api.post(`/tickets/${id}/comments`, {
-        message: formData.message,
-        comment_type: commentType,
-      });
+
       if (commentType === 'solution') {
-        await api.put(`/tickets/${id}/status`, { status: 'closed' });
+        await api.post(`/tickets/${id}/close`, { solution_message: formData.message });
+        window.showNotification('success', 'Ticket fechado com solução!');
+      } else {
+        await api.post(`/tickets/${id}/comments`, {
+          message: formData.message,
+          comment_type: commentType,
+        });
+        window.showNotification('success', 'Comentário adicionado com sucesso');
       }
+
       setShowCommentModal(false);
       fetchTicketDetails();
-      window.showNotification('success', 'Comentário adicionado com sucesso');
     } catch (error) {
       window.showNotification('error', 'Erro ao adicionar comentário');
     } finally {
@@ -309,25 +319,33 @@ export default function TicketDetailPage() {
     }
   };
 
-  const handleRemoveEquipment = async (associationId) => {
-    if (!confirm('Remover este equipamento do ticket?')) return;
-    try {
-      await api.delete(`/tickets/${id}/equipment/${associationId}`);
-      fetchTicketDetails();
-      window.showNotification('success', 'Equipamento removido com sucesso');
-    } catch (error) {
-      window.showNotification('error', 'Erro ao remover equipamento');
-    }
+  const handleRemoveEquipment = (associationId) => {
+    openConfirm(
+      'Remover Equipamento',
+      'Tens a certeza que queres remover este equipamento do ticket?',
+      async () => {
+        closeConfirm();
+        try {
+          await api.delete(`/tickets/${id}/equipment/${associationId}`);
+          fetchTicketDetails();
+          window.showNotification('success', 'Equipamento removido com sucesso');
+        } catch { window.showNotification('error', 'Erro ao remover equipamento'); }
+      }
+    );
   };
 
-  const handleDeleteComment = async (commentId) => {
-    if (!confirm('Eliminar este comentário?')) return;
-    try {
-      await api.delete(`/tickets/${id}/comments/${commentId}`);
-      fetchTicketDetails();
-    } catch (error) {
-      console.error('Erro ao eliminar comentário:', error);
-    }
+  const handleDeleteComment = (commentId) => {
+    openConfirm(
+      'Eliminar Comentário',
+      'Tens a certeza que queres eliminar este comentário?',
+      async () => {
+        closeConfirm();
+        try {
+          await api.delete(`/tickets/${id}/comments/${commentId}`);
+          fetchTicketDetails();
+        } catch { console.error('Erro ao eliminar comentário'); }
+      }
+    );
   };
 
   const openAssignModal = async () => {
@@ -922,6 +940,15 @@ export default function TicketDetailPage() {
         onSubmit={handleAddEquipment}
         onClose={() => setShowEquipmentModal(false)}
         loading={actionLoading}
+      />
+
+      <ConfirmModal
+        isOpen={confirmModal.open}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={closeConfirm}
+        isDangerous={confirmModal.isDangerous}
       />
     </div>
   );
