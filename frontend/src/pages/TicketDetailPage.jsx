@@ -229,7 +229,7 @@ export default function TicketDetailPage() {
       } else {
         await api.post(`/tickets/${id}/comments`, {
           message: formData.message,
-          comment_type: commentType,
+          comment_type: isAdmin ? commentType : 'comment',
         });
         window.showNotification('success', 'Comentário adicionado com sucesso');
       }
@@ -831,7 +831,7 @@ export default function TicketDetailPage() {
       <FormModal
         isOpen={showCommentModal}
         title="Adicionar Mensagem"
-        fields={[
+        fields={isAdmin ? [
           {
             name: 'comment_type',
             label: 'Tipo de Mensagem',
@@ -843,6 +843,14 @@ export default function TicketDetailPage() {
             ],
             defaultValue: 'comment',
           },
+          {
+            name: 'message',
+            label: 'Mensagem',
+            type: 'textarea',
+            required: true,
+            placeholder: 'Escreve a tua mensagem...',
+          },
+        ] : [
           {
             name: 'message',
             label: 'Mensagem',

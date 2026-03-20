@@ -126,7 +126,7 @@ router.get('/getEquipmentID/:id', verifyToken, isAdmin, getEquipmentById);
  *       500:
  *         description: Server error
  */
-router.get('/getUserEquipment/:id', verifyToken, isAdmin, getUserEquipment);
+router.get('/getUserEquipment/:id', verifyToken, getUserEquipment);
 
 /**
  * @swagger

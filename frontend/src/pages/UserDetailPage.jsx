@@ -447,7 +447,7 @@ export default function UserDetailPage() {
 
         {activeTab === 'equipment' && (
           <Card>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
               <h3>Equipamento Atribuído</h3>
               <button 
                 className="btn btn-primary" 
@@ -464,21 +464,58 @@ export default function UserDetailPage() {
                 Nenhum equipamento atribuído
               </p>
             ) : (
-              <Table
-                columns={equipmentColumns}
-                rows={equipment}
-                actions={[
-                  {
-                    id: 'unassign',
-                    label: 'Desatribuir equipamento',
-                    icon: <CloseIcon sx={{ fontSize: '1.1rem' }} />,
-                    onClick: (item) => {
-                      setSelectedEquipmentToUnassign(item);
-                      setUnassignModal(true);
-                    }
-                  }
-                ]}
-              />
+              <div className="equipment-grid">
+                {equipment.map((item) => (
+                  <div key={item.id} className="equipment-card">
+                    <div className="equipment-card-header">
+                      <div className="equipment-card-icon">
+                        <ComputerIcon sx={{ fontSize: '1.5rem' }} />
+                      </div>
+                      <div className="equipment-card-title">
+                        <h4 className="equipment-card-name">{item.name}</h4>
+                        <p className="equipment-card-type">{item.type}</p>
+                      </div>
+                    </div>
+
+                    <div className="equipment-card-body">
+                      {item.model && (
+                        <div className="equipment-card-field">
+                          <span className="equipment-card-label">Modelo:</span>
+                          <span className="equipment-card-value">{item.model}</span>
+                        </div>
+                      )}
+                      {item.location && (
+                        <div className="equipment-card-field">
+                          <span className="equipment-card-label">Localização:</span>
+                          <span className="equipment-card-value">{item.location}</span>
+                        </div>
+                      )}
+                      <div className="equipment-card-field">
+                        <span className="equipment-card-label">Status:</span>
+                        <span className={`equipment-card-status ${item.status}`}>
+                          {item.status === 'available' && 'Disponível'}
+                          {item.status === 'in_use' && 'Em Uso'}
+                          {item.status === 'maintenance' && 'Manutenção'}
+                          {item.status === 'retired' && 'Reformado'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="equipment-card-actions">
+                      <button
+                        className="equipment-card-action-btn"
+                        onClick={() => {
+                          setSelectedEquipmentToUnassign(item);
+                          setUnassignModal(true);
+                        }}
+                      >
+                        <DeleteIcon sx={{ fontSize: '1rem' }} />
+                        Desatribuir
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
           </Card>
         )}

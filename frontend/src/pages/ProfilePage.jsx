@@ -8,6 +8,7 @@ import PersonIcon from '@mui/icons-material/Person';
 import EmailIcon from '@mui/icons-material/Email';
 import BadgeIcon from '@mui/icons-material/Badge';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import DeleteIcon from '@mui/icons-material/Delete';
 import { getEmailUsername, buildHelpdeskEmail, HELPDESK_EMAIL_DOMAIN } from '../utils/email';
 import '../styles/detail-page.css';
 
@@ -154,7 +155,7 @@ export default function ProfilePage() {
           </div>
         </div>
         <div className="stat-card">
-          <div className="stat-icon" style={{ background: equipment.length > 0 ? '#4caf50' : '#666' }}>
+          <div className="stat-icon" style={{ background: '#3d6aff' }}>
             <ComputerIcon style={{ fontSize: '28px', color: '#fff' }} />
           </div>
           <div>
@@ -223,45 +224,50 @@ export default function ProfilePage() {
               Nenhum equipamento atribuído
             </p>
           ) : (
-            <div style={{ display: 'grid', gap: '1rem', marginTop: '1rem' }}>
+            <div className="equipment-grid" style={{ marginTop: '1rem' }}>
               {equipment.map((item) => (
-                <div
-                  key={item.id}
-                  style={{
-                    background: '#2a2a2a',
-                    padding: '1.5rem',
-                    borderRadius: '10px',
-                    borderLeft: '4px solid #3d6aff',
-                    cursor: isAdmin ? 'pointer' : 'default',
-                    transition: isAdmin ? 'transform 0.2s' : 'none',
-                  }}
-                  onClick={isAdmin ? () => navigate(`/equipment/${item.id}`) : undefined}
-                  onMouseEnter={isAdmin ? (e) => e.currentTarget.style.transform = 'translateX(4px)' : undefined}
-                  onMouseLeave={isAdmin ? (e) => e.currentTarget.style.transform = 'translateX(0)' : undefined}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
-                    <div>
-                      <div style={{ fontSize: '1.1rem', fontWeight: 600, color: '#fff', marginBottom: '0.5rem' }}>
-                        {item.name}
-                      </div>
-                      <div style={{ color: '#999', fontSize: '0.9rem' }}>
-                        {item.type} {item.model ? `• ${item.model}` : ''}
-                      </div>
-                      {item.location && (
-                        <div style={{ color: '#999', fontSize: '0.85rem', marginTop: '0.25rem' }}>
-                          {item.location}
-                        </div>
-                      )}
+                <div key={item.id} className="equipment-card">
+                  <div className="equipment-card-header">
+                    <div className="equipment-card-icon">
+                      <ComputerIcon sx={{ fontSize: '1.5rem' }} />
                     </div>
-                    <span style={{ 
-                      background: item.status === 'in_use' ? '#3d6aff' : '#4caf50',
-                      color: '#fff',
-                      padding: '0.25rem 0.75rem',
-                      borderRadius: '12px',
-                      fontSize: '0.75rem'
-                    }}>
-                      {item.status === 'in_use' ? 'Em Uso' : item.status === 'available' ? 'Disponível' : item.status}
-                    </span>
+                    <div className="equipment-card-title">
+                      <h4 className="equipment-card-name">{item.name}</h4>
+                      <p className="equipment-card-type">{item.type}</p>
+                    </div>
+                  </div>
+
+                  <div className="equipment-card-body">
+                    {item.model && (
+                      <div className="equipment-card-field">
+                        <span className="equipment-card-label">Modelo:</span>
+                        <span className="equipment-card-value">{item.model}</span>
+                      </div>
+                    )}
+                    {item.location && (
+                      <div className="equipment-card-field">
+                        <span className="equipment-card-label">Localização:</span>
+                        <span className="equipment-card-value">{item.location}</span>
+                      </div>
+                    )}
+                    <div className="equipment-card-field">
+                      <span className="equipment-card-label">Status:</span>
+                      <span className={`equipment-card-status ${item.status}`}>
+                        {item.status === 'in_use' ? 'Em Uso' : item.status === 'available' ? 'Disponível' : item.status}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="equipment-card-actions">
+                    {isAdmin && (
+                      <button
+                        className="equipment-card-action-btn"
+                        onClick={() => navigate(`/equipment/${item.id}`)}
+                      >
+                        <DeleteIcon sx={{ fontSize: '1rem' }} />
+                        Ver
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}

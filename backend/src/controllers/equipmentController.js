@@ -132,6 +132,12 @@ export const getUserEquipment = async (req, res) => {
   try {
     const { id } = req.params;
     const { status, limit = 50, offset = 0 } = req.query;
+    
+    // Verificar se o utilizador é admin ou se está a ver os seus próprios equipamentos
+    if (req.userRole !== 'admin' && parseInt(id) !== req.userId) {
+      return res.status(403).json({ error: 'Acesso não autorizado' });
+    }
+
     const limitNum = Math.min(parseInt(limit) || 50, 100);
     const offsetNum = parseInt(offset) || 0;
 
