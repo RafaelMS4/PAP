@@ -51,7 +51,6 @@ export const getUsers = async (req, res) => {
         u.created_at,
         (SELECT COUNT(*) FROM tickets t WHERE t.user_id = u.id) AS ticket_count
       FROM users u
-      WHERE u.deleted_at IS NULL
     `;
     const params = [];
 
@@ -73,7 +72,7 @@ export const getUsers = async (req, res) => {
     const users = await dbAll(sql, params);
 
     // Get total count for pagination
-    let countSql = 'SELECT COUNT(*) as count FROM users WHERE deleted_at IS NULL';
+    let countSql = 'SELECT COUNT(*) as count FROM users';
     const countParams = [];
     if (role) {
       countSql += ' AND role = ?';
@@ -172,22 +171,6 @@ export const getUserById = async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
     res.json({ user });
-    } catch (error) {
-        res.status(500).json({ error: 'Server error' });
-    }
-};
-
-export const deleteUser = async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    // Soft delete - mark as deleted but keep data
-    const result = await dbRun('UPDATE users SET deleted_at = datetime("now") WHERE id = ? AND deleted_at IS NULL', [id]);
-    
-    if (result.changes === 0) {
-      return res.status(404).json({ error: 'User not found or already deleted' });
-    }
-    res.json({ message: 'User deleted successfully' });
     } catch (error) {
         res.status(500).json({ error: 'Server error' });
     }

@@ -36,7 +36,7 @@ export const getEquipment = async (req, res) => {
     const limitNum = Math.min(parseInt(limit) || 50, 100);
     const offsetNum = parseInt(offset) || 0;
 
-    let sql = 'SELECT equipment.*, users.name as assigned_user_name FROM equipment LEFT JOIN users ON users.id = equipment.assigned_to WHERE equipment.deleted_at IS NULL';
+    let sql = 'SELECT equipment.*, users.name as assigned_user_name FROM equipment LEFT JOIN users ON users.id = equipment.assigned_to WHERE equipment.status IS NOT "retired"';
     const params = [];
 
     if (type) {
@@ -62,7 +62,7 @@ export const getEquipment = async (req, res) => {
     const equipmentList = await dbAll(sql, params);
 
     // Get total count
-    let countSql = 'SELECT COUNT(*) as count FROM equipment WHERE deleted_at IS NULL';
+    let countSql = 'SELECT COUNT(*) as count FROM equipment WHERE status IS NOT "retired"';
     const countParams = [];
     if (type) {
       countSql += ' AND type = ?';
@@ -100,7 +100,7 @@ export const getEquipmentById = async (req, res) => {
   try {
     const { id } = req.params;
     const equipment = await dbGet(
-      'SELECT equipment.*, users.name as assigned_user_name FROM equipment LEFT JOIN users ON users.id = equipment.assigned_to WHERE equipment.id = ? AND equipment.deleted_at IS NULL',
+      'SELECT equipment.*, users.name as assigned_user_name FROM equipment LEFT JOIN users ON users.id = equipment.assigned_to WHERE equipment.id = ? AND equipment.status != "retired"',
       [id]
     );
     if (!equipment) {
@@ -121,7 +121,7 @@ export const deleteEquipment = async (req, res) => {
     }
     
     // Soft delete - mark as deleted but keep data
-    await dbRun('UPDATE equipment SET deleted_at = datetime("now") WHERE id = ?', [id]);
+    await dbRun('UPDATE equipment SET status = "retired" WHERE id = ?', [id]);
     res.json({ message: 'Equipment deleted successfully' });
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
@@ -141,7 +141,7 @@ export const getUserEquipment = async (req, res) => {
     const limitNum = Math.min(parseInt(limit) || 50, 100);
     const offsetNum = parseInt(offset) || 0;
 
-    let sql = 'SELECT equipment.*, users.name as assigned_user_name FROM equipment LEFT JOIN users ON users.id = equipment.assigned_to WHERE equipment.assigned_to = ? AND equipment.deleted_at IS NULL';
+    let sql = 'SELECT equipment.*, users.name as assigned_user_name FROM equipment LEFT JOIN users ON users.id = equipment.assigned_to WHERE equipment.assigned_to = ? AND equipment.status != "retired"';
     const params = [id];
 
     if (status) {
@@ -155,7 +155,7 @@ export const getUserEquipment = async (req, res) => {
     const equipmentList = await dbAll(sql, params);
 
     // Get total count
-    let countSql = 'SELECT COUNT(*) as count FROM equipment WHERE assigned_to = ? AND deleted_at IS NULL';
+    let countSql = 'SELECT COUNT(*) as count FROM equipment WHERE assigned_to = ? AND status != "retired"';
     const countParams = [id];
     if (status) {
       countSql += ' AND status = ?';

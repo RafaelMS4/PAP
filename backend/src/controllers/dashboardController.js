@@ -11,8 +11,8 @@ export const getDashboardStats = async (req, res) => {
       const inProgressTickets = await dbGet('SELECT COUNT(*) as count FROM tickets WHERE status = "in_progress"');
       const closedTickets = await dbGet('SELECT COUNT(*) as count FROM tickets WHERE status = "closed"');
       const unassignedTickets = await dbGet('SELECT COUNT(*) as count FROM tickets WHERE assigned_to IS NULL AND status != "closed"');
-      const totalUsers = await dbGet('SELECT COUNT(*) as count FROM users WHERE deleted_at IS NULL');
-      const totalEquipment = await dbGet('SELECT COUNT(*) as count FROM equipment WHERE deleted_at IS NULL');
+      const totalUsers = await dbGet('SELECT COUNT(*) as count FROM users WHERE status != "retired"');
+      const totalEquipment = await dbGet('SELECT COUNT(*) as count FROM equipment WHERE status != "retired"');
 
       // High priority tickets
       const urgentTickets = await dbGet('SELECT COUNT(*) as count FROM tickets WHERE priority = "urgent" AND status != "closed"');
