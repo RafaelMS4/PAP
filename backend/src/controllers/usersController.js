@@ -176,6 +176,22 @@ export const getUserById = async (req, res) => {
     }
 };
 
+export const deleteUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Soft delete - mark as deleted but keep data
+    const result = await dbRun('DELETE FROM users WHERE id = ?', [id]);
+    
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'User not found or already deleted' });
+    }
+    res.json({ message: 'User deleted successfully' });
+    } catch (error) {
+        res.status(500).json({ error: 'Server error' });
+    }
+};
+
 export const updateUser = async (req, res) => {
   try {
     const { id } = req.params;
